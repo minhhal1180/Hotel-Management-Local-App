@@ -2,6 +2,7 @@
 
 > **Báo cáo kỹ thuật chi tiết về kiến trúc và cách triển khai dự án**
 
+
 ---
 
 ##  MỤC LỤC
@@ -9,10 +10,11 @@
 1. [Tổng quan Nghiệp vụ & Kiến trúc Hệ thống](#1-tổng-quan-nghiệp-vụ--kiến-trúc-hệ-thống)
 2. [Kỹ thuật & Dependency Injection](#2-kỹ-thuật--dependency-injection-di)
 3. [Cơ sở dữ liệu & Transaction](#3-cơ-sở-dữ-liệu--transaction)
-4. [Chức năng Nghiệp vụ & Validation](#4-chức-năng-nghiệp-vụ--validation)
-5. [Xử lý Xuất/Nhập Excel](#5-xử-lý-xuấtnhập-excel)
-6. [Hướng dẫn Thiết lập Form](#6-hướng-dẫn-chi-tiết-thiết-lập-form)
-7. [Các lệnh thực thi](#7-các-lệnh-thực-thi)
+4. [Async/Await Implementation](#4-asyncawait-implementation)
+5. [Chức năng Nghiệp vụ & Validation](#5-chức-năng-nghiệp-vụ--validation)
+6. [Xử lý Xuất/Nhập Excel](#6-xử-lý-xuấtnhập-excel)
+7. [Hướng dẫn Thiết lập Form](#7-hướng-dẫn-chi-tiết-thiết-lập-form)
+8. [Các lệnh thực thi](#8-các-lệnh-thực-thi)
 
 ---
 
@@ -33,43 +35,43 @@ Hệ thống Quản lý Khách sạn giải quyết các vấn đề thực tế
 | **Lập hóa đơn** | Tổng hợp tiền phòng + dịch vụ, giảm giá, xuất Excel |
 
 #### Vấn đề thực tế được giải quyết
-- ✅ Tránh đặt phòng trùng lịch (Double Booking)
-- ✅ Tự động tính tiền theo số đêm và giá phòng
-- ✅ Theo dõi lịch sử đặt phòng của khách
-- ✅ Quản lý dịch vụ đi kèm trong mỗi lần thuê phòng
-- ✅ Xuất báo cáo Excel cho kế toán
+-  Tránh đặt phòng trùng lịch (Double Booking)
+-  Tự động tính tiền theo số đêm và giá phòng
+-  Theo dõi lịch sử đặt phòng của khách
+-  Quản lý dịch vụ đi kèm trong mỗi lần thuê phòng
+-  Xuất báo cáo Excel cho kế toán
 
 ### 1.2 Cấu trúc Component (3-Layer Architecture)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    PRESENTATION LAYER                        │
-│              (HotelManagementSystem.Forms)                   │
+│                    PRESENTATION LAYER                       │
+│              (HotelManagementSystem.Forms)                  │
 │  FrmLogin | FrmMain | FrmRooms | FrmGuests | FrmBooking...  │
 └─────────────────────────┬───────────────────────────────────┘
                           │ Constructor Injection
                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   BUSINESS LOGIC LAYER                       │
-│               (HotelManagementSystem.BLL)                    │
-│                                                              │
-│  ┌─────────────┐        ┌─────────────────────────────────┐ │
-│  │ Interfaces/ │        │ Services/                       │ │
-│  ├─────────────┤        ├─────────────────────────────────┤ │
-│  │ IAuthService│◄───────│ AuthService.cs                  │ │
-│  │ IRoomService│◄───────│ RoomService.cs                  │ │
-│  │ IGuestService│◄──────│ GuestService.cs                 │ │
-│  │IBookingService│◄─────│ BookingService.cs               │ │
-│  │IServiceService│◄─────│ ServiceService.cs               │ │
-│  │IInvoiceService│◄─────│ InvoiceService.cs               │ │
-│  └─────────────┘        └─────────────────────────────────┘ │
-└─────────────────────────┬───────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────┐
+│                     BUSINESS LOGIC LAYER                      │
+│                 (HotelManagementSystem.BLL)                   │
+│                                                               │
+│  ┌───────────────┐        ┌─────────────────────────────────┐ │
+│  │ Interfaces/   │        │ Services/                       │ │
+│  ├───────────────┤        ├─────────────────────────────────┤ │
+│  │ IAuthService  │◄───────│ AuthService.cs                  │ │
+│  │ IRoomService  │◄───────│ RoomService.cs                  │ │
+│  │ IGuestService │◄───────│ GuestService.cs                 │ │
+│  │IBookingService│◄───────│ BookingService.cs               │ │
+│  │IServiceService│◄───────│ ServiceService.cs               │ │
+│  │IInvoiceService│◄───────│ InvoiceService.cs               │ │
+│  └───────────────┘        └─────────────────────────────────┘ │
+└─────────────────────────┬─────────────────────────────────────┘
                           │ IUnitOfWork Injection
                           ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                   DATA ACCESS LAYER                          │
-│               (HotelManagementSystem.DAL)                    │
-│                                                              │
+│                   DATA ACCESS LAYER                         │
+│               (HotelManagementSystem.DAL)                   │
+│                                                             │
 │  ┌─────────────────────────────────────────────────────────┐│
 │  │ Repositories/                                           ││
 │  │  - IGenericRepository<T> : Interface CRUD chung         ││
@@ -77,7 +79,7 @@ Hệ thống Quản lý Khách sạn giải quyết các vấn đề thực tế
 │  │  - IUnitOfWork           : Quản lý Transaction          ││
 │  │  - UnitOfWork            : Triển khai Unit of Work      ││
 │  └─────────────────────────────────────────────────────────┘│
-│                                                              │
+│                                                             │
 │  ┌─────────────────────────────────────────────────────────┐│
 │  │ HotelContext.cs : DbContext (EF Core)                   ││
 │  │  - Cấu hình DbSet cho các Entity                        ││
@@ -87,10 +89,10 @@ Hệ thống Quản lý Khách sạn giải quyết các vấn đề thực tế
                           │ Entity Framework Core
                           ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                      ENTITIES LAYER                          │
-│            (HotelManagementSystem.Entities)                  │
-│                                                              │
-│  Entities/                                                   │
+│                      ENTITIES LAYER                         │
+│            (HotelManagementSystem.Entities)                 │
+│                                                             │
+│  Entities/                                                  │
 │   - Room.cs          : Phòng khách sạn                      │
 │   - RoomType.cs      : Loại phòng (Đơn, Đôi, VIP...)        │
 │   - Guest.cs         : Khách hàng                           │
@@ -459,18 +461,18 @@ public void Rollback()
 
 ```
 ┌─────────────┐       ┌─────────────┐       ┌─────────────┐
-│  RoomType   │───1:N─│    Room     │───1:N─│   Booking   │
+│  RoomType   │──1:N─→│    Room     │──1:N─→│   Booking   │
 ├─────────────┤       ├─────────────┤       ├─────────────┤
 │ RoomTypeId  │       │ RoomId      │       │ BookingId   │
 │ RoomTypeName│       │ RoomNumber  │       │ GuestId (FK)│
-│ PricePerNight│      │ RoomTypeId  │       │ RoomId (FK) │
+│ PricePerNigh│       │ RoomTypeId  │       │ RoomId (FK) │
 │ Description │       │ Floor       │       │ CheckInDate │
 └─────────────┘       │ Status      │       │ CheckOutDate│
                       │ Description │       │ Status      │
                       └─────────────┘       │ TotalAmount │
                                             │ Note        │
 ┌─────────────┐                             └──────┬──────┘
-│    Guest    │─────────────────────1:N───────────┘│
+│    Guest    │◄─────────────────────1:N───────────┘
 ├─────────────┤                                    │
 │ GuestId     │       ┌─────────────┐              │
 │ FullName    │       │   Service   │              │
@@ -484,21 +486,21 @@ public void Rollback()
                              │              │ BookingId   │
                              │1:N           │ RoomCharge  │
                              ▼              │ServiceCharge│
-                      ┌─────────────┐       │ Discount    │
-                      │BookingService│      │ TotalAmount │
-                      ├─────────────┤       │PaymentMethod│
-                      │BookingServiceId│    │ PaymentDate │
-                      │ BookingId   │◄──N:1─│ CreatedBy   │
-                      │ ServiceId   │       └─────────────┘
-                      │ Quantity    │              │
-                      │ UnitPrice   │              │N:1
-                      │ UsedDate    │              ▼
-                      └─────────────┘       ┌─────────────┐
+                    ┌────────────────┐      │ Discount    │
+                    │  BookingService│      │ TotalAmount │
+                    ├────────────────┤      │PaymentMethod│
+                    │BookingServiceId│      │ PaymentDate │
+                    │ BookingId      │◄─N:1─│ CreatedBy   │
+                    │ ServiceId      │      └─────────────┘
+                    │ Quantity       │              │
+                    │ UnitPrice      │              │N:1
+                    │ UsedDate       │              ▼
+                    └────────────────┘      ┌─────────────┐
                                             │   AppUser   │
                                             ├─────────────┤
                                             │ AppUserId   │
                                             │ UserName    │
-                                            │PasswordHash│
+                                            │PasswordHash │
                                             │ Role        │
                                             │ IsActive    │
                                             └─────────────┘
@@ -540,12 +542,446 @@ var displayList = guests.Select(g => new
 
 dgvGuests.DataSource = displayList;
 ```
-
 ---
 
-## 4. CHỨC NĂNG NGHIỆP VỤ & VALIDATION
+## 4. ASYNC/AWAIT IMPLEMENTATION
 
-### 4.1 Phân loại Chức năng
+### 4.1 Cơ sở Lý thuyết Async/Await
+
+**Synchronous vs Asynchronous:**
+
+| Khía cạnh | Synchronous | Asynchronous |
+|-----------|-------------|--------------|
+| **Cách thức hoạt động** | Thực thi tuần tự, chờ từng tác vụ hoàn thành | Cho phép nhiều tác vụ chạy song song |
+| **Blocking** | Block thread khi chờ I/O (Database, File, Network) | Không block thread, giải phóng thread về pool |
+| **UI Responsiveness** | UI đơ khi thực hiện tác vụ dài | UI luôn phản hồi (responsive) |
+| **Resource Usage** | 1 thread/request (tốn tài nguyên) | Nhiều request dùng chung thread pool |
+| **Scalability** | Giới hạn bởi số lượng thread | Mở rộng tốt hơn nhiều lần |
+
+#### Performance Benefits
+
+**Throughput Improvement:**
+```
+Synchronous App:
+- 100 concurrent users
+- Each request needs 1 thread
+- Cần 100 threads → Tốn 100MB RAM (1MB/thread)
+
+Asynchronous App:
+- 100 concurrent users
+- Threads được reuse khi chờ I/O
+- Chỉ cần ~10-20 threads → Tiết kiệm 80-90MB RAM
+- Phục vụ được 1000+ concurrent users trên cùng phần cứng
+```
+**Latency Improvement trong WinForms:**
+```
+Scenario: Load 10,000 guests từ database
+
+Synchronous:
+- UI thread blocked 2-3 giây
+- User không thể click, scroll, minimize
+- Trải nghiệm xấu
+
+Asynchronous:
+- UI thread free ngay lập tức
+- User vẫn tương tác bình thường
+- Progress bar/loading animation hoạt động mượt
+```
+
+### 4.1 Kiến trúc Async từng Layer
+
+#### **Data Access Layer (DAL) - Repository Async**
+
+```csharp
+// Interface: IGenericRepository<T>
+public interface IGenericRepository<T> where T : class
+{
+    // Synchronous methods (giữ lại cho backward compatibility)
+    IEnumerable<T> GetAll(...);
+    T? GetByID(object id);
+    void Insert(T entity);
+    void Delete(object id);
+    void Update(T entity);
+    
+    // NEW: Asynchronous methods
+    Task<IEnumerable<T>> GetAllAsync(...);
+    Task<T?> GetByIDAsync(object id);
+    Task DeleteAsync(object id);
+}
+
+// Implementation: GenericRepository<T>
+public async Task<IEnumerable<T>> GetAllAsync(
+    Expression<Func<T, bool>>? filter = null,
+    Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,
+    string includeProperties = "")
+{
+    IQueryable<T> query = dbSet;
+
+    if (filter != null)
+        query = query.Where(filter);
+
+    foreach (var includeProperty in includeProperties.Split(',', StringSplitOptions.RemoveEmptyEntries))
+        query = query.Include(includeProperty);
+
+    if (orderBy != null)
+        return await orderBy(query).ToListAsync(); // EF Core async
+    else
+        return await query.ToListAsync(); // EF Core async
+}
+
+public async Task<T?> GetByIDAsync(object id)
+{
+    return await dbSet.FindAsync(id); // EF Core async
+}
+
+public async Task DeleteAsync(object id)
+{
+    T? entityToDelete = await dbSet.FindAsync(id);
+    if (entityToDelete != null)
+        Delete(entityToDelete);
+}
+```
+
+#### **Unit of Work Async**
+
+```csharp
+// Interface: IUnitOfWork
+public interface IUnitOfWork : IDisposable
+{
+    // Repository properties
+    IGenericRepository<Room> RoomRepository { get; }
+    IGenericRepository<Guest> GuestRepository { get; }
+    // ... other repositories
+    
+    // Synchronous methods
+    void Save();
+    IDbContextTransaction BeginTransaction();
+    void Commit();
+    void Rollback();
+    
+    // NEW: Asynchronous methods
+    Task SaveAsync();
+    Task<IDbContextTransaction> BeginTransactionAsync();
+    Task CommitAsync();
+    Task RollbackAsync();
+}
+
+// Implementation: UnitOfWork
+public async Task SaveAsync()
+{
+    await _context.SaveChangesAsync();
+}
+
+public async Task<IDbContextTransaction> BeginTransactionAsync()
+{
+    _transaction = await _context.Database.BeginTransactionAsync();
+    return _transaction;
+}
+
+public async Task CommitAsync()
+{
+    try
+    {
+        if (_transaction != null)
+            await _transaction.CommitAsync();
+    }
+    finally
+    {
+        if (_transaction != null)
+        {
+            await _transaction.DisposeAsync();
+            _transaction = null;
+        }
+    }
+}
+
+public async Task RollbackAsync()
+{
+    try
+    {
+        if (_transaction != null)
+            await _transaction.RollbackAsync();
+    }
+    finally
+    {
+        if (_transaction != null)
+        {
+            await _transaction.DisposeAsync();
+            _transaction = null;
+        }
+    }
+}
+```
+
+#### **Business Logic Layer (BLL) - Service Async**
+
+```csharp
+// Interface: IGuestService
+public interface IGuestService
+{
+    Task<IEnumerable<Guest>> GetGuestsAsync(string keyword = "");
+    Task<Guest?> GetGuestByIdAsync(int id);
+    Task AddGuestAsync(Guest guest);
+    Task UpdateGuestAsync(Guest guest);
+    Task DeleteGuestAsync(int id);
+    Task<string> ImportGuestsFromExcelAsync(string filePath);
+    Task ExportGuestsToExcelAsync(string filePath);
+    void RefreshCache();
+    Task RefreshCacheAsync();
+}
+
+// Implementation: GuestService
+public class GuestService : IGuestService
+{
+    private readonly IUnitOfWork _unitOfWork;
+    private static List<Guest>? _cachedGuests = null;
+
+    public async Task RefreshCacheAsync()
+    {
+        var guests = await _unitOfWork.GuestRepository.GetAllAsync();
+        _cachedGuests = guests.ToList();
+    }
+
+    public async Task<IEnumerable<Guest>> GetGuestsAsync(string keyword = "")
+    {
+        if (_cachedGuests == null)
+            await RefreshCacheAsync();
+
+        if (string.IsNullOrEmpty(keyword))
+            return _cachedGuests!;
+
+        keyword = keyword.ToLower();
+        return _cachedGuests!.Where(g =>
+            g.FullName.ToLower().Contains(keyword) ||
+            (g.IdentityCard?.ToLower().Contains(keyword) ?? false) ||
+            (g.Phone?.ToLower().Contains(keyword) ?? false)
+        ).ToList();
+    }
+
+    public async Task AddGuestAsync(Guest guest)
+    {
+        _unitOfWork.GuestRepository.Insert(guest);
+        await _unitOfWork.SaveAsync();
+        
+        if (_cachedGuests != null)
+            _cachedGuests.Add(guest);
+    }
+
+    public async Task<string> ImportGuestsFromExcelAsync(string filePath)
+    {
+        // ... validation logic ...
+        
+        using (var package = new ExcelPackage(new FileInfo(filePath)))
+        {
+            var sheet = package.Workbook.Worksheets[0];
+            int rowCount = sheet.Dimension.Rows;
+            
+            for (int row = 2; row <= rowCount; row++)
+            {
+                // ... create guest entity ...
+                _unitOfWork.GuestRepository.Insert(guest);
+            }
+            
+            await _unitOfWork.SaveAsync(); // Async save
+            await RefreshCacheAsync();
+        }
+    }
+
+    public async Task ExportGuestsToExcelAsync(string filePath)
+    {
+        var guests = (await GetGuestsAsync("")).ToList();
+        
+        using (var package = new ExcelPackage())
+        {
+            var sheet = package.Workbook.Worksheets.Add("Khách hàng");
+            
+            // ... populate Excel ...
+            
+            await package.SaveAsAsync(new FileInfo(filePath)); // EPPlus async
+        }
+    }
+}
+```
+
+#### **Booking Service với Async Transaction**
+
+```csharp
+public async Task CreateBookingAsync(int guestId, int roomId, 
+    DateTime checkIn, DateTime checkOut, string? note = null)
+{
+    var guest = await _unitOfWork.GuestRepository.GetByIDAsync(guestId);
+    if (guest == null) throw new Exception("Không tìm thấy khách hàng!");
+
+    var rooms = await _unitOfWork.RoomRepository.GetAllAsync(
+        filter: r => r.RoomId == roomId,
+        includeProperties: "RoomType"
+    );
+    var room = rooms.FirstOrDefault();
+    if (room == null) throw new Exception("Không tìm thấy phòng!");
+
+    // Kiểm tra phòng trống bất đồng bộ
+    var existingBookings = await _unitOfWork.BookingRepository.GetAllAsync(
+        filter: b => b.RoomId == roomId &&
+                     b.Status != "Cancelled" && b.Status != "CheckedOut" &&
+                     ((checkIn >= b.CheckInDate && checkIn < b.CheckOutDate) ||
+                      (checkOut > b.CheckInDate && checkOut <= b.CheckOutDate) ||
+                      (checkIn <= b.CheckInDate && checkOut >= b.CheckOutDate))
+    );
+    
+    if (existingBookings.Any()) 
+        throw new Exception("Phòng đã được đặt trong khoảng thời gian này!");
+
+    // Transaction async
+    using var transaction = await _unitOfWork.BeginTransactionAsync();
+    try
+    {
+        var booking = new Booking { /* ... */ };
+        _unitOfWork.BookingRepository.Insert(booking);
+        await _unitOfWork.SaveAsync();
+        await _unitOfWork.CommitAsync();
+        
+        await RefreshCacheAsync();
+    }
+    catch
+    {
+        await _unitOfWork.RollbackAsync();
+        throw;
+    }
+}
+
+public async Task CheckInAsync(int bookingId)
+{
+    var booking = await _unitOfWork.BookingRepository.GetByIDAsync(bookingId);
+    if (booking == null) throw new Exception("Không tìm thấy booking!");
+    
+    using var transaction = await _unitOfWork.BeginTransactionAsync();
+    try
+    {
+        booking.Status = "CheckedIn";
+        _unitOfWork.BookingRepository.Update(booking);
+
+        var room = await _unitOfWork.RoomRepository.GetByIDAsync(booking.RoomId);
+        if (room != null)
+        {
+            room.Status = "Occupied";
+            _unitOfWork.RoomRepository.Update(room);
+        }
+
+        await _unitOfWork.SaveAsync();
+        await _unitOfWork.CommitAsync();
+        await RefreshCacheAsync();
+    }
+    catch
+    {
+        await _unitOfWork.RollbackAsync();
+        throw;
+    }
+}
+```
+
+#### **Presentation Layer (Forms) - Async Event Handlers**
+
+```csharp
+// FrmGuests.cs
+public partial class FrmGuests : Form
+{
+    private readonly IGuestService _guestService;
+
+    // Form Load - async void event handler
+    private async void FrmGuests_Load(object? sender, EventArgs e)
+    {
+        await LoadGuestsAsync();
+        dtpDOB.Value = new DateTime(1990, 1, 1);
+    }
+
+    // Load data method - async Task
+    private async System.Threading.Tasks.Task LoadGuestsAsync(string keyword = "")
+    {
+        try
+        {
+            var guests = await _guestService.GetGuestsAsync(keyword);
+            var displayList = guests.Select(g => new
+            {
+                g.GuestId,
+                g.FullName,
+                g.IdentityCard,
+                DOB = g.DOB?.ToString("dd/MM/yyyy"),
+                g.Phone,
+                g.Address,
+                g.Email,
+                g.Nationality,
+                CreatedDate = g.CreatedDate.ToString("dd/MM/yyyy")
+            }).ToList();
+
+            dgvGuests.DataSource = displayList;
+            // ... setup columns ...
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("Lỗi tải khách hàng: " + ex.Message);
+        }
+    }
+
+    // Button click - async void event handler
+    private async void btnAdd_Click(object sender, EventArgs e)
+    {
+        if (!ValidateInput()) return;
+
+        try
+        {
+            var guest = new Guest
+            {
+                FullName = txtFullName.Text.Trim(),
+                IdentityCard = txtIdentityCard.Text.Trim(),
+                DOB = dtpDOB.Value,
+                Phone = txtPhone.Text.Trim(),
+                Address = txtAddress.Text.Trim(),
+                Email = txtEmail.Text.Trim(),
+                Nationality = txtNationality.Text.Trim(),
+                CreatedDate = DateTime.Now
+            };
+
+            await _guestService.AddGuestAsync(guest);
+            MessageBox.Show("Thêm khách hàng thành công!");
+            await LoadGuestsAsync();
+            ResetForm();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("Lỗi: " + ex.Message);
+        }
+    }
+
+    // Export Excel - async void
+    private async void btnExport_Click(object sender, EventArgs e)
+    {
+        using (SaveFileDialog sfd = new SaveFileDialog() 
+        { 
+            Filter = "Excel|*.xlsx", 
+            FileName = "DanhSachKhachHang.xlsx" 
+        })
+        {
+            if (sfd.ShowDialog() == DialogResult.OK)
+            {
+                try
+                {
+                    await _guestService.ExportGuestsToExcelAsync(sfd.FileName);
+                    MessageBox.Show("Xuất file Excel thành công!");
+                }
+                catch (Exception ex) 
+                { 
+                    MessageBox.Show("Lỗi: " + ex.Message); 
+                }
+            }
+        }
+    }
+} 
+```  
+---
+
+## 5. CHỨC NĂNG NGHIỆP VỤ & VALIDATION
+
+### 5.1 Phân loại Chức năng
 
 #### A. Chức năng CRUD cơ bản
 
@@ -626,7 +1062,7 @@ public decimal CalculateServiceCharge(int bookingId)
 }
 ```
 
-### 4.2 Validation (Kiểm tra dữ liệu)
+### 5.2 Validation (Kiểm tra dữ liệu)
 
 #### Vị trí Validate: **Tại Form (Presentation Layer)**
 
@@ -694,9 +1130,9 @@ catch (Exception ex)
 
 ---
 
-## 5. XỬ LÝ XUẤT/NHẬP EXCEL
+## 6. XỬ LÝ XUẤT/NHẬP EXCEL
 
-### 5.1 Thư viện sử dụng
+### 6.1 Thư viện sử dụng
 
 **EPPlus** - Version 8.4.0
 
@@ -711,18 +1147,109 @@ catch (Exception ex)
 ExcelPackage.License.SetNonCommercialPersonal("HocSinh");
 ```
 
-### 5.2 Triển khai Export/Import
+### 6.2 Triển khai Export/Import với Async
 
 #### Logic xuất file: **Tại Service Layer** (Tách riêng khỏi Controller/Form)
 
-| File | Hàm Export | Hàm Import |
-|------|------------|------------|
-| `RoomService.cs` | `ExportRoomsToExcel()` | `ImportRoomsFromExcel()` |
-| `GuestService.cs` | `ExportGuestsToExcel()` | `ImportGuestsFromExcel()` |
-| `BookingService.cs` | `ExportBookingHistoryToExcel()` | - |
-| `InvoiceService.cs` | `ExportInvoiceToExcel()`, `ExportAllInvoicesToExcel()` | - |
+| File | Hàm Export Async | Hàm Import Async |
+|------|------------------|------------------|
+| `RoomService.cs` | `ExportRoomsToExcelAsync()` | `ImportRoomsFromExcelAsync()` |
+| `GuestService.cs` | `ExportGuestsToExcelAsync()` | `ImportGuestsFromExcelAsync()` |
+| `BookingService.cs` | `ExportBookingHistoryToExcelAsync()` | - |
+| `InvoiceService.cs` | `ExportInvoiceToExcelAsync()`, `ExportAllInvoicesToExcelAsync()` | - |
 
-### 5.3 Chi tiết Output Excel
+
+```csharp
+// GuestService.cs
+public async Task ExportGuestsToExcelAsync(string filePath)
+{
+    var guests = (await GetGuestsAsync("")).ToList();
+    
+    using (var package = new ExcelPackage())
+    {
+        var sheet = package.Workbook.Worksheets.Add("Khách hàng");
+        
+        // Headers
+        string[] headers = { "Mã KH", "Họ tên", "CMND", "Ngày sinh", "SĐT", "Địa chỉ", "Email", "Quốc tịch" };
+        for (int i = 0; i < headers.Length; i++)
+            sheet.Cells[1, i + 1].Value = headers[i];
+
+        // Data rows
+        for (int i = 0; i < guests.Count; i++)
+        {
+            var g = guests[i];
+            sheet.Cells[i + 2, 1].Value = g.GuestId;
+            sheet.Cells[i + 2, 2].Value = g.FullName;
+            sheet.Cells[i + 2, 3].Value = g.IdentityCard;
+            sheet.Cells[i + 2, 4].Value = g.DOB?.ToString("dd/MM/yyyy");
+            sheet.Cells[i + 2, 5].Value = g.Phone;
+            sheet.Cells[i + 2, 6].Value = g.Address;
+            sheet.Cells[i + 2, 7].Value = g.Email;
+            sheet.Cells[i + 2, 8].Value = g.Nationality;
+        }
+
+        sheet.Cells.AutoFitColumns();
+        await package.SaveAsAsync(new FileInfo(filePath)); // EPPlus async method
+    }
+}
+```
+
+#### Import Excel với Async
+```csharp
+// GuestService.cs
+public async Task<string> ImportGuestsFromExcelAsync(string filePath)
+{
+    if (!File.Exists(filePath))
+        throw new FileNotFoundException("File không tồn tại!");
+
+    int successCount = 0;
+    int errorCount = 0;
+    var errorMessages = new List<string>();
+
+    using (var package = new ExcelPackage(new FileInfo(filePath)))
+    {
+        var sheet = package.Workbook.Worksheets[0];
+        int rowCount = sheet.Dimension.Rows;
+
+        for (int row = 2; row <= rowCount; row++) // Bỏ qua header
+        {
+            try
+            {
+                var guest = new Guest
+                {
+                    FullName = sheet.Cells[row, 2].Text,
+                    IdentityCard = sheet.Cells[row, 3].Text,
+                    DOB = DateTime.TryParse(sheet.Cells[row, 4].Text, out var dob) ? dob : null,
+                    Phone = sheet.Cells[row, 5].Text,
+                    Address = sheet.Cells[row, 6].Text,
+                    Email = sheet.Cells[row, 7].Text,
+                    Nationality = sheet.Cells[row, 8].Text,
+                    CreatedDate = DateTime.Now
+                };
+
+                _unitOfWork.GuestRepository.Insert(guest);
+                successCount++;
+            }
+            catch (Exception ex)
+            {
+                errorCount++;
+                errorMessages.Add($"Dòng {row}: {ex.Message}");
+            }
+        }
+
+        await _unitOfWork.SaveAsync(); // Async save all
+        await RefreshCacheAsync();
+    }
+
+    string result = $"Thêm thành công {successCount}, lỗi {errorCount} dòng";
+    if (errorMessages.Any())
+        result += "\n" + string.Join("\n", errorMessages);
+
+    return result;
+}
+```
+
+### 6.3 Chi tiết Output Excel
 
 #### **A. File: DanhSachPhong.xlsx (Rooms)**
 
@@ -809,7 +1336,7 @@ public void ExportRoomsToExcel(string filePath)
 │                                                          │
 │ DỊCH VỤ SỬ DỤNG                                          │
 │ [ServiceName]    [Qty]    [UnitPrice]    [Subtotal]      │
-│ ...                                                       │
+│ ...                                                      │
 │                                                          │
 │ Tiền dịch vụ:                 [ServiceCharge]            │
 │ Giảm giá:                     [Discount]                 │
@@ -832,7 +1359,7 @@ public void ExportRoomsToExcel(string filePath)
 | H | Thanh toán |
 | I | Ngày |
 
-### 5.4 Import Excel
+### 6.4 Import Excel
 
 #### **A. Import Rooms (RoomService.cs)**
 
@@ -939,7 +1466,7 @@ public string ImportGuestsFromExcel(string filePath)
 }
 ```
 
-### 5.5 Data Port & Cấu hình đường dẫn
+### 6.5 Data Port & Cấu hình đường dẫn
 
 **Đường dẫn file**: Do người dùng chọn thông qua `SaveFileDialog` / `OpenFileDialog`
 
@@ -974,9 +1501,9 @@ using (OpenFileDialog ofd = new OpenFileDialog()
 
 ---
 
-## 6. HƯỚNG DẪN CHI TIẾT THIẾT LẬP FORM
+## 7. HƯỚNG DẪN CHI TIẾT THIẾT LẬP FORM
 
-### 6.1 Công cụ sử dụng
+### 7.1 Công cụ sử dụng
 
 | Công cụ | Mô tả |
 |---------|-------|
@@ -987,7 +1514,7 @@ using (OpenFileDialog ofd = new OpenFileDialog()
 | **EPPlus 8.4.0** | Xuất/nhập Excel |
 | **Microsoft.Extensions.DependencyInjection** | DI Container |
 
-### 6.2 Controls thường dùng trong Form
+### 7.2 Controls thường dùng trong Form
 
 | Control | Namespace | Chức năng |
 |---------|-----------|-----------|
@@ -1001,7 +1528,7 @@ using (OpenFileDialog ofd = new OpenFileDialog()
 | `SaveFileDialog` | System.Windows.Forms | Dialog lưu file |
 | `OpenFileDialog` | System.Windows.Forms | Dialog mở file |
 
-### 6.3 Các hàm thường dùng
+### 7.3 Các hàm thường dùng
 
 #### A. Load dữ liệu vào DataGridView:
 ```csharp
@@ -1017,15 +1544,22 @@ private void LoadGuests(string keyword = "")
 }
 ```
 
-#### B. Load dữ liệu vào ComboBox:
+#### B. Load dữ liệu vào ComboBox với Async:
 ```csharp
-private void LoadRoomTypes()
+private async Task LoadRoomTypesAsync()
 {
-    var roomTypes = _roomService.GetAllRoomTypes().ToList();
+    var roomTypes = (await _roomService.GetAllRoomTypesAsync()).ToList();
     cboRoomType.DataSource = roomTypes;
     cboRoomType.DisplayMember = "RoomTypeName";  // Hiển thị
     cboRoomType.ValueMember = "RoomTypeId";       // Giá trị
     cboRoomType.SelectedIndex = -1;               // Không chọn mặc định
+}
+
+// Gọi từ Form_Load:
+private async void FrmBooking_Load(object? sender, EventArgs e)
+{
+    await LoadRoomTypesAsync();
+    await LoadBookingsAsync();
 }
 ```
 
@@ -1060,7 +1594,7 @@ private void ResetForm()
 }
 ```
 
-### 6.4 Quy trình tạo Form mới
+### 7.4 Quy trình tạo Form mới với Async Pattern
 
 **Bước 1: Tạo Form trong Visual Studio**
 - Right-click project `HotelManagementSystem.Forms`
@@ -1071,7 +1605,7 @@ private void ResetForm()
 - Kéo thả Controls từ Toolbox
 - Đặt tên cho Controls (Prefix: `btn`, `txt`, `cbo`, `dgv`, `lbl`, `dtp`)
 
-**Bước 3: Viết code-behind**
+**Bước 3: Viết code-behind với Async/Await**
 ```csharp
 public partial class FrmNewFeature : Form
 {
@@ -1085,14 +1619,32 @@ public partial class FrmNewFeature : Form
         this.Load += FrmNewFeature_Load;
     }
 
-    private void FrmNewFeature_Load(object? sender, EventArgs e)
+    // async void cho event handler
+    private async void FrmNewFeature_Load(object? sender, EventArgs e)
     {
-        // Load dữ liệu khi mở form
+        await LoadDataAsync();
     }
 
-    private void btnAdd_Click(object sender, EventArgs e)
+    // async Task cho helper method
+    private async Task LoadDataAsync()
     {
-        // Xử lý thêm mới
+        var data = await _newService.GetAllAsync();
+        dgvData.DataSource = data;
+    }
+
+    // async void cho button click event
+    private async void btnAdd_Click(object sender, EventArgs e)
+    {
+        try
+        {
+            await _newService.AddAsync(newItem);
+            MessageBox.Show("Thêm thành công!");
+            await LoadDataAsync(); // Refresh
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Lỗi: {ex.Message}");
+        }
     }
 }
 ```
@@ -1114,9 +1666,9 @@ private void btnNewFeature_Click(object? sender, EventArgs e)
 
 ---
 
-## 7. CÁC LỆNH THỰC THI
+## 8. CÁC LỆNH THỰC THI
 
-### 7.1 Thiết lập môi trường
+### 8.1 Thiết lập môi trường
 
 ```powershell
 # Cài đặt .NET 8.0 SDK (nếu chưa có)
@@ -1126,7 +1678,7 @@ private void btnNewFeature_Click(object? sender, EventArgs e)
 dotnet --version
 ```
 
-### 7.2 Restore NuGet Packages
+### 8.2 Restore NuGet Packages
 
 ```powershell
 # Di chuyển đến thư mục solution
@@ -1136,7 +1688,7 @@ cd "HotelManagementSystem"
 dotnet restore HotelManagementSystem.sln
 ```
 
-### 7.3 Build dự án
+### 8.3 Build dự án
 
 ```powershell
 # Build Debug
@@ -1146,7 +1698,7 @@ dotnet build HotelManagementSystem.Forms\HotelManagementSystem.Forms.csproj --co
 dotnet build HotelManagementSystem.Forms\HotelManagementSystem.Forms.csproj --configuration Release
 ```
 
-### 7.4 Chạy ứng dụng
+### 8.4 Chạy ứng dụng
 
 ```powershell
 # Chạy trực tiếp
@@ -1156,7 +1708,7 @@ dotnet run --project HotelManagementSystem.Forms\HotelManagementSystem.Forms.csp
 .\HotelManagementSystem.Forms\bin\Debug\net8.0-windows\HotelManagementSystem.Forms.exe
 ```
 
-### 7.5 Entity Framework Core Migrations
+### 8.5 Entity Framework Core Migrations
 
 ```powershell
 # Di chuyển đến thư mục DAL
@@ -1172,7 +1724,7 @@ dotnet ef database update --startup-project ..\HotelManagementSystem.Forms
 dotnet ef migrations script --startup-project ..\HotelManagementSystem.Forms
 ```
 
-### 7.6 Cài đặt SQL Server LocalDB
+### 8.6 Cài đặt SQL Server LocalDB
 
 ```powershell
 # Kiểm tra LocalDB đã cài chưa
@@ -1189,7 +1741,7 @@ sqllocaldb start MSSQLLocalDB
 # Authentication: Windows Authentication
 ```
 
-### 7.7 Tài khoản đăng nhập mặc định
+### 8.7 Tài khoản đăng nhập mặc định
 
 | Username | Password | Role |
 |----------|----------|------|
@@ -1210,24 +1762,4 @@ sqllocaldb start MSSQLLocalDB
 | EPPlus | 8.4.0 | Forms/BLL | Excel Export/Import |
 
 ---
-
-##  TỔNG KẾT
-
-| Tiêu chí | Giá trị |
-|----------|---------|
-| Kiến trúc | 3-Layer Architecture |
-| DI Pattern | Constructor Injection |
-| ORM | Entity Framework Core 8.0 |
-| Database | SQL Server LocalDB |
-| UI Framework | Windows Forms (.NET 8) |
-| Excel Library | EPPlus |
-| Transaction | UnitOfWork Pattern |
-| Async/Await | Không sử dụng |
-| Validation | Manual (tại Form + Service) |
-| DTO | Không sử dụng (Entity trực tiếp) |
-
 ---
-
-**Tác giả**: Hotel Management System Team  
-**Ngày tạo**: 16/01/2026  
-**Version**: 1.0.0

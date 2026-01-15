@@ -1,5 +1,6 @@
 ﻿using HotelManagementSystem.Entities.Entities;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace HotelManagementSystem.BLL.Interfaces
 {
@@ -8,15 +9,16 @@ namespace HotelManagementSystem.BLL.Interfaces
     /// </summary>
     public interface IGuestService
     {
-        IEnumerable<Guest> GetGuests(string keyword = "");
-        Guest? GetGuestById(int id);
-        void AddGuest(Guest guest);
-        void UpdateGuest(Guest guest);
-        void DeleteGuest(int id);
+        Task<IEnumerable<Guest>> GetGuestsAsync(string keyword = "");
+        Task<Guest?> GetGuestByIdAsync(int id);
+        Task AddGuestAsync(Guest guest);
+        Task UpdateGuestAsync(Guest guest);
+        Task DeleteGuestAsync(int id);
 
-        // Hàm Import Excel: Tr? v? chu?i thông báo k?t qu? (VD: "Thêm thành công 5, l?i 2 d?ng")
-        string ImportGuestsFromExcel(string filePath);
-        void ExportGuestsToExcel(string filePath);
+        // Hàm Import Excel: Trả về chuỗi thông báo kết quả (VD: "Thêm thành công 5, lỗi 2 dòng")
+        Task<string> ImportGuestsFromExcelAsync(string filePath);
+        Task ExportGuestsToExcelAsync(string filePath);
         void RefreshCache();
+        Task RefreshCacheAsync();
     }
 }

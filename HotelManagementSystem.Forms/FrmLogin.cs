@@ -18,7 +18,7 @@ namespace HotelManagementSystem.Forms
             _authService = authService;
         }
 
-        private void btnLogin_Click(object sender, EventArgs e)
+        private async void btnLogin_Click(object sender, EventArgs e)
         {
             string username = txtUsername.Text.Trim();
             string password = txtPassword.Text.Trim();
@@ -32,7 +32,7 @@ namespace HotelManagementSystem.Forms
             try
             {
                 // 1. Gọi Service kiểm tra đăng nhập
-                AppUser? user = _authService.Login(username, password);
+                AppUser? user = await _authService.LoginAsync(username, password);
 
                 if (user != null)
                 {

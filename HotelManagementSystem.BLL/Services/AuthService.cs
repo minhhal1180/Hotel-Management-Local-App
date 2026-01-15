@@ -2,6 +2,7 @@
 using HotelManagementSystem.DAL.Repositories;
 using HotelManagementSystem.Entities.Entities;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace HotelManagementSystem.BLL.Services
 {
@@ -15,15 +16,14 @@ namespace HotelManagementSystem.BLL.Services
             _unitOfWork = unitOfWork;
         }
 
-        public AppUser? Login(string username, string password)
+        public async Task<AppUser?> LoginAsync(string username, string password)
         {
             // Tìm user trong DB có username khớp
             // Lưu ý: Password nên mã hóa, nhưng ở đây ta làm demo so sánh trực tiếp
-            var user = _unitOfWork.AppUserRepository
-                .GetAll(u => u.UserName == username && u.PasswordHash == password && u.IsActive)
-                .FirstOrDefault();
-
-            return user;
+            var users = await _unitOfWork.AppUserRepository
+                .GetAllAsync(u => u.UserName == username && u.PasswordHash == password && u.IsActive);
+            
+            return users.FirstOrDefault();
         }
     }
 }

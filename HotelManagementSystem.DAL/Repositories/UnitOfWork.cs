@@ -2,6 +2,7 @@
 using HotelManagementSystem.Entities.Entities;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
+using System.Threading.Tasks;
 
 namespace HotelManagementSystem.DAL.Repositories
 {
@@ -55,6 +56,11 @@ namespace HotelManagementSystem.DAL.Repositories
             _context.SaveChanges();
         }
 
+        public async Task SaveAsync()
+        {
+            await _context.SaveChangesAsync();
+        }
+
         private bool disposed = false;
 
         protected virtual void Dispose(bool disposing)
@@ -75,6 +81,12 @@ namespace HotelManagementSystem.DAL.Repositories
             return _transaction;
         }
 
+        public async Task<IDbContextTransaction> BeginTransactionAsync()
+        {
+            _transaction = await _context.Database.BeginTransactionAsync();
+            return _transaction;
+        }
+
         public void Commit()
         {
             try
@@ -88,6 +100,25 @@ namespace HotelManagementSystem.DAL.Repositories
             }
         }
 
+        public async Task CommitAsync()
+        {
+            try
+            {
+                if (_transaction != null)
+                {
+                    await _transaction.CommitAsync();
+                }
+            }
+            finally
+            {
+                if (_transaction != null)
+                {
+                    await _transaction.DisposeAsync();
+                    _transaction = null;
+                }
+            }
+        }
+
         public void Rollback()
         {
             try
@@ -98,6 +129,25 @@ namespace HotelManagementSystem.DAL.Repositories
             {
                 _transaction?.Dispose();
                 _transaction = null;
+            }
+        }
+
+        public async Task RollbackAsync()
+        {
+            try
+            {
+                if (_transaction != null)
+                {
+                    await _transaction.RollbackAsync();
+                }
+            }
+            finally
+            {
+                if (_transaction != null)
+                {
+                    await _transaction.DisposeAsync();
+                    _transaction = null;
+                }
             }
         }
 

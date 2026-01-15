@@ -1,10 +1,11 @@
 ﻿using HotelManagementSystem.Entities;
 using HotelManagementSystem.Entities.Entities;
+using System.Threading.Tasks;
 
 namespace HotelManagementSystem.BLL.Interfaces
 {
     public interface IAuthService
     {
-        AppUser? Login(string username, string password);
+        Task<AppUser?> LoginAsync(string username, string password);
     }
 }

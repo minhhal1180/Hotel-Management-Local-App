@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace HotelManagementSystem.BLL.Services
 {
@@ -24,11 +25,17 @@ namespace HotelManagementSystem.BLL.Services
             _cachedGuests = _unitOfWork.GuestRepository.GetAll().ToList();
         }
 
-        public IEnumerable<Guest> GetGuests(string keyword = "")
+        public async Task RefreshCacheAsync()
+        {
+            var guests = await _unitOfWork.GuestRepository.GetAllAsync();
+            _cachedGuests = guests.ToList();
+        }
+
+        public async Task<IEnumerable<Guest>> GetGuestsAsync(string keyword = "")
         {
             if (_cachedGuests == null)
             {
-                RefreshCache();
+                await RefreshCacheAsync();
             }
 
             if (string.IsNullOrEmpty(keyword))
@@ -44,19 +51,19 @@ namespace HotelManagementSystem.BLL.Services
             ).ToList();
         }
 
-        public Guest? GetGuestById(int id)
+        public async Task<Guest?> GetGuestByIdAsync(int id)
         {
-            if (_cachedGuests == null) RefreshCache();
+            if (_cachedGuests == null) await RefreshCacheAsync();
             return _cachedGuests!.FirstOrDefault(g => g.GuestId == id);
         }
 
-        public void AddGuest(Guest guest)
+        public async Task AddGuestAsync(Guest guest)
         {
             if (guest.CreatedDate == DateTime.MinValue)
                 guest.CreatedDate = DateTime.Now;
 
             _unitOfWork.GuestRepository.Insert(guest);
-            _unitOfWork.Save();
+            await _unitOfWork.SaveAsync();
 
             if (_cachedGuests != null)
             {
@@ -64,10 +71,10 @@ namespace HotelManagementSystem.BLL.Services
             }
         }
 
-        public void UpdateGuest(Guest guest)
+        public async Task UpdateGuestAsync(Guest guest)
         {
             _unitOfWork.GuestRepository.Update(guest);
-            _unitOfWork.Save();
+            await _unitOfWork.SaveAsync();
 
             if (_cachedGuests != null)
             {
@@ -85,20 +92,18 @@ namespace HotelManagementSystem.BLL.Services
             }
         }
 
-        public void DeleteGuest(int id)
+        public async Task DeleteGuestAsync(int id)
         {
-            // Ki?m tra khách có booking không
-            var hasBooking = _unitOfWork.BookingRepository.GetAll(
-                filter: b => b.GuestId == id
-            ).Any();
+            var bookings = await _unitOfWork.BookingRepository.GetAllAsync(filter: b => b.GuestId == id);
+            var hasBooking = bookings.Any();
 
             if (hasBooking)
             {
-                throw new InvalidOperationException("Khách hàng đ? có l?ch s? đ?t ph?ng, không th? xóa!");
+                throw new InvalidOperationException("Khách hàng đã có lịch sử đặt phòng, không thể xóa!");
             }
 
-            _unitOfWork.GuestRepository.Delete(id);
-            _unitOfWork.Save();
+            await _unitOfWork.GuestRepository.DeleteAsync(id);
+            await _unitOfWork.SaveAsync();
 
             if (_cachedGuests != null)
             {
@@ -107,11 +112,11 @@ namespace HotelManagementSystem.BLL.Services
             }
         }
 
-        public string ImportGuestsFromExcel(string filePath)
+        public async Task<string> ImportGuestsFromExcelAsync(string filePath)
         {
             if (!File.Exists(filePath))
             {
-                throw new FileNotFoundException("Không t?m th?y file Excel!");
+                throw new FileNotFoundException("Không tìm thấy file Excel!");
             }
 
             int successCount = 0;
@@ -122,7 +127,6 @@ namespace HotelManagementSystem.BLL.Services
                 var worksheet = package.Workbook.Worksheets[0];
                 int rowCount = worksheet.Dimension.Rows;
 
-                // C?u trúc: H? tên, CMND, Ngày sinh, SĐT, Đ?a ch?, Email, Qu?c t?ch
                 for (int row = 2; row <= rowCount; row++)
                 {
                     try
@@ -154,26 +158,22 @@ namespace HotelManagementSystem.BLL.Services
                         errorCount++;
                     }
                 }
-
-                if (successCount > 0)
-                {
-                    _unitOfWork.Save();
-                }
+                await _unitOfWork.SaveAsync();
             }
 
-            RefreshCache();
-            return $"Đ? import thành công {successCount} khách hàng. L?i {errorCount} d?ng.";
+            await RefreshCacheAsync();
+            return $"Nhập thành công {successCount} khách hàng. Lỗi: {errorCount}";
         }
 
-        public void ExportGuestsToExcel(string filePath)
+        public async Task ExportGuestsToExcelAsync(string filePath)
         {
-            var guests = GetGuests().ToList();
+            var guests = (await GetGuestsAsync()).ToList();
 
             using (var package = new ExcelPackage())
             {
                 var sheet = package.Workbook.Worksheets.Add("Danh sách Khách hàng");
 
-                string[] headers = { "M? KH", "H? tên", "CMND/CCCD", "Ngày sinh", "SĐT", "Đ?a ch?", "Email", "Qu?c t?ch", "Ngày t?o" };
+                string[] headers = { "Mã KH", "Họ tên", "CMND/CCCD", "Ngày sinh", "SĐT", "Địa chỉ", "Email", "Quốc tịch", "Ngày tạo" };
                 for (int i = 0; i < headers.Length; i++) sheet.Cells[1, i + 1].Value = headers[i];
 
                 for (int i = 0; i < guests.Count; i++)
@@ -191,7 +191,7 @@ namespace HotelManagementSystem.BLL.Services
                 }
 
                 sheet.Cells.AutoFitColumns();
-                package.SaveAs(new FileInfo(filePath));
+                await package.SaveAsAsync(new FileInfo(filePath));
             }
         }
     }

@@ -17,17 +17,17 @@ namespace HotelManagementSystem.Forms
             this.Load += FrmGuests_Load;
         }
 
-        private void FrmGuests_Load(object? sender, EventArgs e)
+        private async void FrmGuests_Load(object? sender, EventArgs e)
         {
-            LoadGuests();
+            await LoadGuestsAsync();
             dtpDOB.Value = new DateTime(1990, 1, 1);
         }
 
-        private void LoadGuests(string keyword = "")
+        private async System.Threading.Tasks.Task LoadGuestsAsync(string keyword = "")
         {
             try
             {
-                var guests = _guestService.GetGuests(keyword);
+                var guests = await _guestService.GetGuestsAsync(keyword);
                 var displayList = guests.Select(g => new
                 {
                     g.GuestId,
@@ -59,12 +59,12 @@ namespace HotelManagementSystem.Forms
             }
         }
 
-        private void btnSearch_Click(object sender, EventArgs e)
+        private async void btnSearch_Click(object sender, EventArgs e)
         {
-            LoadGuests(txtSearch.Text.Trim());
+            await LoadGuestsAsync(txtSearch.Text.Trim());
         }
 
-        private void btnAdd_Click(object sender, EventArgs e)
+        private async void btnAdd_Click(object sender, EventArgs e)
         {
             if (!ValidateInput()) return;
 
@@ -82,9 +82,9 @@ namespace HotelManagementSystem.Forms
                     CreatedDate = DateTime.Now
                 };
 
-                _guestService.AddGuest(guest);
+                await _guestService.AddGuestAsync(guest);
                 MessageBox.Show("Thêm khách hàng thành công!");
-                LoadGuests();
+                await LoadGuestsAsync();
                 ResetForm();
             }
             catch (Exception ex)
@@ -93,7 +93,7 @@ namespace HotelManagementSystem.Forms
             }
         }
 
-        private void btnUpdate_Click(object sender, EventArgs e)
+        private async void btnUpdate_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(txtID.Text))
             {
@@ -105,7 +105,7 @@ namespace HotelManagementSystem.Forms
             try
             {
                 int guestId = int.Parse(txtID.Text);
-                var guest = _guestService.GetGuestById(guestId);
+                var guest = await _guestService.GetGuestByIdAsync(guestId);
                 if (guest != null)
                 {
                     guest.FullName = txtFullName.Text.Trim();
@@ -116,9 +116,9 @@ namespace HotelManagementSystem.Forms
                     guest.Email = txtEmail.Text.Trim();
                     guest.Nationality = txtNationality.Text.Trim();
 
-                    _guestService.UpdateGuest(guest);
+                    await _guestService.UpdateGuestAsync(guest);
                     MessageBox.Show("Cập nhật khách hàng thành công!");
-                    LoadGuests();
+                    await LoadGuestsAsync();
                 }
             }
             catch (Exception ex)
@@ -127,7 +127,7 @@ namespace HotelManagementSystem.Forms
             }
         }
 
-        private void btnDelete_Click(object sender, EventArgs e)
+        private async void btnDelete_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(txtID.Text))
             {
@@ -141,9 +141,9 @@ namespace HotelManagementSystem.Forms
                 try
                 {
                     int guestId = int.Parse(txtID.Text);
-                    _guestService.DeleteGuest(guestId);
+                    await _guestService.DeleteGuestAsync(guestId);
                     MessageBox.Show("Xóa khách hàng thành công!");
-                    LoadGuests();
+                    await LoadGuestsAsync();
                     ResetForm();
                 }
                 catch (Exception ex)
@@ -153,10 +153,10 @@ namespace HotelManagementSystem.Forms
             }
         }
 
-        private void btnRefresh_Click(object sender, EventArgs e)
+        private async void btnRefresh_Click(object sender, EventArgs e)
         {
-            _guestService.RefreshCache();
-            LoadGuests();
+            await _guestService.RefreshCacheAsync();
+            await LoadGuestsAsync();
             ResetForm();
             txtSearch.Clear();
         }
@@ -182,7 +182,7 @@ namespace HotelManagementSystem.Forms
             }
         }
 
-        private void btnExport_Click(object sender, EventArgs e)
+        private async void btnExport_Click(object sender, EventArgs e)
         {
             using (SaveFileDialog sfd = new SaveFileDialog() { Filter = "Excel|*.xlsx", FileName = "DanhSachKhachHang.xlsx" })
             {
@@ -190,7 +190,7 @@ namespace HotelManagementSystem.Forms
                 {
                     try
                     {
-                        _guestService.ExportGuestsToExcel(sfd.FileName);
+                        await _guestService.ExportGuestsToExcelAsync(sfd.FileName);
                         MessageBox.Show("Xuất file Excel thành công!");
                     }
                     catch (Exception ex) { MessageBox.Show("Lỗi: " + ex.Message); }

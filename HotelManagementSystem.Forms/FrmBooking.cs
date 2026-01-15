@@ -21,20 +21,20 @@ namespace HotelManagementSystem.Forms
             this.Load += FrmBooking_Load;
         }
 
-        private void FrmBooking_Load(object? sender, EventArgs e)
+        private async void FrmBooking_Load(object? sender, EventArgs e)
         {
-            LoadGuests();
+            await LoadGuestsAsync();
             dtpCheckIn.Value = DateTime.Today;
             dtpCheckOut.Value = DateTime.Today.AddDays(1);
-            LoadAvailableRooms();
-            LoadBookings();
+            await LoadAvailableRoomsAsync();
+            await LoadBookingsAsync();
         }
 
-        private void LoadGuests()
+        private async System.Threading.Tasks.Task LoadGuestsAsync()
         {
             try
             {
-                var guests = _guestService.GetGuests().ToList();
+                var guests = (await _guestService.GetGuestsAsync()).ToList();
                 cboGuest.DataSource = guests;
                 cboGuest.DisplayMember = "FullName";
                 cboGuest.ValueMember = "GuestId";
@@ -46,11 +46,11 @@ namespace HotelManagementSystem.Forms
             }
         }
 
-        private void LoadAvailableRooms()
+        private async System.Threading.Tasks.Task LoadAvailableRoomsAsync()
         {
             try
- {
-        var rooms = _roomService.GetAvailableRooms(dtpCheckIn.Value, dtpCheckOut.Value).ToList();
+            {
+                var rooms = (await _roomService.GetAvailableRoomsAsync(dtpCheckIn.Value, dtpCheckOut.Value)).ToList();
         cboRoom.DataSource = rooms.Select(r => new
            {
         r.RoomId,
@@ -68,11 +68,11 @@ namespace HotelManagementSystem.Forms
             }
         }
 
-      private void LoadBookings(string keyword = "")
-   {
-   try
-     {
-    var bookings = _bookingService.GetBookings(keyword);
+        private async System.Threading.Tasks.Task LoadBookingsAsync(string keyword = "")
+        {
+            try
+            {
+                var bookings = await _bookingService.GetBookingsAsync(keyword);
            var displayList = bookings.Select(b => new
        {
            b.BookingId,
@@ -104,43 +104,43 @@ namespace HotelManagementSystem.Forms
       }
       }
 
-        private void dtpDate_ValueChanged(object? sender, EventArgs e)
+        private async void dtpDate_ValueChanged(object? sender, EventArgs e)
         {
-            LoadAvailableRooms();
+            await LoadAvailableRoomsAsync();
         }
 
- private void btnSearch_Click(object sender, EventArgs e)
-      {
-LoadBookings(txtSearch.Text.Trim());
-    }
+        private async void btnSearch_Click(object sender, EventArgs e)
+        {
+            await LoadBookingsAsync(txtSearch.Text.Trim());
+        }
 
-        private void btnBooking_Click(object sender, EventArgs e)
-{
-      if (cboGuest.SelectedValue == null)
-     {
-              MessageBox.Show("Vui lòng chọn khách hàng!");
-          return;
-            }
-     if (cboRoom.SelectedValue == null)
+        private async void btnBooking_Click(object sender, EventArgs e)
+        {
+            if (cboGuest.SelectedValue == null)
             {
-       MessageBox.Show("Vui lòng chọn phòng!");
-    return;
-  }
-          if (dtpCheckOut.Value <= dtpCheckIn.Value)
-    {
-      MessageBox.Show("Ngày check-out phải sau ngày check-in!");
-    return;
+                MessageBox.Show("Vui lòng chọn khách hàng!");
+                return;
+            }
+            if (cboRoom.SelectedValue == null)
+            {
+                MessageBox.Show("Vui lòng chọn phòng!");
+                return;
+            }
+            if (dtpCheckOut.Value <= dtpCheckIn.Value)
+            {
+                MessageBox.Show("Ngày check-out phải sau ngày check-in!");
+                return;
             }
 
-      try
-         {
-  int guestId = (int)cboGuest.SelectedValue;
+            try
+            {
+                int guestId = (int)cboGuest.SelectedValue;
                 int roomId = (int)cboRoom.SelectedValue;
 
-    _bookingService.CreateBooking(guestId, roomId, dtpCheckIn.Value, dtpCheckOut.Value, txtNote.Text.Trim());
+                await _bookingService.CreateBookingAsync(guestId, roomId, dtpCheckIn.Value, dtpCheckOut.Value, txtNote.Text.Trim());
                 MessageBox.Show("Đặt phòng thành công!");
-      LoadBookings();
-     LoadAvailableRooms();
+                await LoadBookingsAsync();
+                await LoadAvailableRoomsAsync();
     ResetForm();
       }
      catch (Exception ex)
@@ -149,22 +149,22 @@ LoadBookings(txtSearch.Text.Trim());
       }
      }
 
-        private void btnCheckIn_Click(object sender, EventArgs e)
-   {
-if (string.IsNullOrEmpty(txtID.Text))
+        private async void btnCheckIn_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(txtID.Text))
             {
-     MessageBox.Show("Vui lòng chọn booking cần nhận phòng!");
-   return;
-    }
+                MessageBox.Show("Vui lòng chọn booking cần nhận phòng!");
+                return;
+            }
 
-        try
+            try
             {
- int bookingId = int.Parse(txtID.Text);
-    _bookingService.CheckIn(bookingId);
-            MessageBox.Show("Nhận phòng thành công!");
-           LoadBookings();
-    LoadAvailableRooms();
-            _roomService.RefreshCache();
+                int bookingId = int.Parse(txtID.Text);
+                await _bookingService.CheckInAsync(bookingId);
+                MessageBox.Show("Nhận phòng thành công!");
+                await LoadBookingsAsync();
+                await LoadAvailableRoomsAsync();
+                await _roomService.RefreshCacheAsync();
             }
        catch (Exception ex)
             {
@@ -172,22 +172,22 @@ if (string.IsNullOrEmpty(txtID.Text))
             }
         }
 
-      private void btnCheckOut_Click(object sender, EventArgs e)
-   {
+        private async void btnCheckOut_Click(object sender, EventArgs e)
+        {
             if (string.IsNullOrEmpty(txtID.Text))
-   {
-                MessageBox.Show("Vui lòng chọn booking cần trả phòng!");
- return;
-   }
-
-          try
             {
-        int bookingId = int.Parse(txtID.Text);
-           _bookingService.CheckOut(bookingId);
+                MessageBox.Show("Vui lòng chọn booking cần trả phòng!");
+                return;
+            }
+
+            try
+            {
+                int bookingId = int.Parse(txtID.Text);
+                await _bookingService.CheckOutAsync(bookingId);
                 MessageBox.Show("Trả phòng thành công! Vui lòng lập hóa đơn thanh toán.");
-          LoadBookings();
-       LoadAvailableRooms();
-      _roomService.RefreshCache();
+                await LoadBookingsAsync();
+                await LoadAvailableRoomsAsync();
+                await _roomService.RefreshCacheAsync();
             }
  catch (Exception ex)
  {
@@ -195,24 +195,24 @@ if (string.IsNullOrEmpty(txtID.Text))
         }
         }
 
-        private void btnCancel_Click(object sender, EventArgs e)
+        private async void btnCancel_Click(object sender, EventArgs e)
         {
-      if (string.IsNullOrEmpty(txtID.Text))
-     {
-            MessageBox.Show("Vui lòng chọn booking cần hủy!");
-    return;
-          }
+            if (string.IsNullOrEmpty(txtID.Text))
+            {
+                MessageBox.Show("Vui lòng chọn booking cần hủy!");
+                return;
+            }
 
-        if (MessageBox.Show("Bạn có chắc muốn hủy đặt phòng này?", "Xác nhận",
-    MessageBoxButtons.YesNo) == DialogResult.Yes)
-  {
-        try
-     {
-           int bookingId = int.Parse(txtID.Text);
-        _bookingService.CancelBooking(bookingId);
-          MessageBox.Show("Hủy đặt phòng thành công!");
-   LoadBookings();
-            LoadAvailableRooms();
+            if (MessageBox.Show("Bạn có chắc muốn hủy đặt phòng này?", "Xác nhận",
+                MessageBoxButtons.YesNo) == DialogResult.Yes)
+            {
+                try
+                {
+                    int bookingId = int.Parse(txtID.Text);
+                    await _bookingService.CancelBookingAsync(bookingId);
+                    MessageBox.Show("Hủy đặt phòng thành công!");
+                    await LoadBookingsAsync();
+                    await LoadAvailableRoomsAsync();
            }
          catch (Exception ex)
      {
@@ -221,12 +221,12 @@ if (string.IsNullOrEmpty(txtID.Text))
             }
         }
 
-   private void btnRefresh_Click(object sender, EventArgs e)
-   {
-          LoadBookings();
-            LoadAvailableRooms();
+        private async void btnRefresh_Click(object sender, EventArgs e)
+        {
+            await LoadBookingsAsync();
+            await LoadAvailableRoomsAsync();
             ResetForm();
-          txtSearch.Clear();
+            txtSearch.Clear();
         }
 
       private void dgvBookings_CellClick(object sender, DataGridViewCellEventArgs e)
@@ -239,15 +239,15 @@ if (string.IsNullOrEmpty(txtID.Text))
             }
 }
 
-      private void btnExport_Click(object sender, EventArgs e)
-      {
-        using (SaveFileDialog sfd = new SaveFileDialog() { Filter = "Excel|*.xlsx", FileName = "LichSuDatPhong.xlsx" })
-            {
-              if (sfd.ShowDialog() == DialogResult.OK)
+        private async void btnExport_Click(object sender, EventArgs e)
         {
-   try
-  {
-       _bookingService.ExportBookingHistoryToExcel(sfd.FileName);
+            using (SaveFileDialog sfd = new SaveFileDialog() { Filter = "Excel|*.xlsx", FileName = "LichSuDatPhong.xlsx" })
+            {
+                if (sfd.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        await _bookingService.ExportBookingHistoryToExcelAsync(sfd.FileName);
         MessageBox.Show("Xuất file Excel thành công!");
          }
         catch (Exception ex) { MessageBox.Show("Lỗi: " + ex.Message); }

@@ -1,5 +1,7 @@
 ﻿using HotelManagementSystem.Entities.Entities;
 using System.Collections.Generic;
+using System.Threading.Tasks;
+using System;
 
 namespace HotelManagementSystem.BLL.Interfaces
 {
@@ -8,15 +10,14 @@ namespace HotelManagementSystem.BLL.Interfaces
     /// </summary>
     public interface IRoomService
     {
-        IEnumerable<Room> GetRooms(string keyword = "");
-        Room? GetRoomById(int id);
-        void AddRoom(Room room);
-        void UpdateRoom(Room room);
-        void DeleteRoom(int id);
-        IEnumerable<RoomType> GetAllRoomTypes();
-        IEnumerable<Room> GetAvailableRooms(DateTime checkIn, DateTime checkOut);
-        void ImportRoomsFromExcel(string filePath);
-        void ExportRoomsToExcel(string filePath);
-        void RefreshCache();
-    }
+        Task<IEnumerable<Room>> GetRoomsAsync(string keyword = "");
+        Task<Room?> GetRoomByIdAsync(int id);
+        Task AddRoomAsync(Room room);
+        Task UpdateRoomAsync(Room room);
+        Task DeleteRoomAsync(int id);
+        Task<IEnumerable<RoomType>> GetAllRoomTypesAsync();
+        Task<IEnumerable<Room>> GetAvailableRoomsAsync(DateTime checkIn, DateTime checkOut);
+        Task ImportRoomsFromExcelAsync(string filePath);
+        Task ExportRoomsToExcelAsync(string filePath);
+        void RefreshCache();        Task RefreshCacheAsync();    }
 }

@@ -19,25 +19,25 @@ namespace HotelManagementSystem.Forms
         this.Load += FrmInvoice_Load;
         }
 
-   private void FrmInvoice_Load(object? sender, EventArgs e)
+        private async void FrmInvoice_Load(object? sender, EventArgs e)
         {
-            LoadBookingsForInvoice();
-  LoadInvoices();
-        cboPaymentMethod.SelectedIndex = 0;
+            await LoadBookingsForInvoiceAsync();
+            await LoadInvoicesAsync();
+            cboPaymentMethod.SelectedIndex = 0;
         }
 
-        private void LoadBookingsForInvoice()
+        private async System.Threading.Tasks.Task LoadBookingsForInvoiceAsync()
         {
-         try
-      {
-         // Chỉ lấy các booking đã CheckedOut và chưa có hóa đơn
-          var bookings = _bookingService.GetBookings()
-     .Where(b => b.Status == "CheckedOut" && b.Invoice == null)
-             .Select(b => new
-         {
-   b.BookingId,
-  DisplayText = $"#{b.BookingId} - {b.Guest?.FullName} - Phòng {b.Room?.RoomNumber}"
-           }).ToList();
+            try
+            {
+                // Chỉ lấy các booking đã CheckedOut và chưa có hóa đơn
+                var bookings = (await _bookingService.GetBookingsAsync())
+                    .Where(b => b.Status == "CheckedOut" && b.Invoice == null)
+                    .Select(b => new
+                    {
+                        b.BookingId,
+                        DisplayText = $"#{b.BookingId} - {b.Guest?.FullName} - Phòng {b.Room?.RoomNumber}"
+                    }).ToList();
 
     cboBooking.DataSource = bookings;
       cboBooking.DisplayMember = "DisplayText";
@@ -50,11 +50,11 @@ namespace HotelManagementSystem.Forms
             }
 }
 
-        private void LoadInvoices()
-      {
-  try
+        private async System.Threading.Tasks.Task LoadInvoicesAsync()
+        {
+            try
             {
-   var invoices = _invoiceService.GetInvoices();
+                var invoices = await _invoiceService.GetInvoicesAsync();
     var displayList = invoices.Select(i => new
   {
          i.InvoiceId,
@@ -86,19 +86,19 @@ if (dgvInvoices.Columns["PaymentMethod"] != null) dgvInvoices.Columns["PaymentMe
     }
         }
 
-        private void btnCalculate_Click(object sender, EventArgs e)
-     {
-  if (cboBooking.SelectedValue == null)
-    {
-     MessageBox.Show("Vui lòng chọn booking!");
-  return;
-     }
+        private async void btnCalculate_Click(object sender, EventArgs e)
+        {
+            if (cboBooking.SelectedValue == null)
+            {
+                MessageBox.Show("Vui lòng chọn booking!");
+                return;
+            }
 
-    try
-   {
+            try
+            {
                 int bookingId = (int)cboBooking.SelectedValue;
-        decimal roomCharge = _invoiceService.CalculateRoomCharge(bookingId);
-    decimal serviceCharge = _invoiceService.CalculateServiceCharge(bookingId);
+                decimal roomCharge = await _invoiceService.CalculateRoomChargeAsync(bookingId);
+                decimal serviceCharge = await _invoiceService.CalculateServiceChargeAsync(bookingId);
                 decimal discount = decimal.TryParse(txtDiscount.Text, out decimal d) ? d : 0;
                 decimal total = roomCharge + serviceCharge - discount;
 
@@ -112,24 +112,24 @@ if (dgvInvoices.Columns["PaymentMethod"] != null) dgvInvoices.Columns["PaymentMe
             }
         }
 
-      private void btnCreate_Click(object sender, EventArgs e)
-   {
-   if (cboBooking.SelectedValue == null)
+        private async void btnCreate_Click(object sender, EventArgs e)
+        {
+            if (cboBooking.SelectedValue == null)
             {
- MessageBox.Show("Vui lòng chọn booking!");
-      return;
-  }
+                MessageBox.Show("Vui lòng chọn booking!");
+                return;
+            }
 
             try
             {
-   int bookingId = (int)cboBooking.SelectedValue;
-         decimal discount = decimal.TryParse(txtDiscount.Text, out decimal d) ? d : 0;
-        string paymentMethod = cboPaymentMethod.Text;
+                int bookingId = (int)cboBooking.SelectedValue;
+                decimal discount = decimal.TryParse(txtDiscount.Text, out decimal d) ? d : 0;
+                string paymentMethod = cboPaymentMethod.Text;
 
-          _invoiceService.CreateInvoice(bookingId, discount, paymentMethod, null, txtNote.Text.Trim());
+                await _invoiceService.CreateInvoiceAsync(bookingId, discount, paymentMethod, null, txtNote.Text.Trim());
                 MessageBox.Show("Lập hóa đơn thành công!");
-   LoadInvoices();
-LoadBookingsForInvoice();
+                await LoadInvoicesAsync();
+                await LoadBookingsForInvoiceAsync();
     ResetForm();
        }
             catch (Exception ex)
@@ -138,22 +138,22 @@ LoadBookingsForInvoice();
             }
         }
 
-        private void btnExportOne_Click(object sender, EventArgs e)
+        private async void btnExportOne_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(txtID.Text))
-     {
-    MessageBox.Show("Vui lòng chọn hóa đơn cần xuất!");
-      return;
-  }
-
-     using (SaveFileDialog sfd = new SaveFileDialog() { Filter = "Excel|*.xlsx", FileName = $"HoaDon_{txtID.Text}.xlsx" })
             {
-        if (sfd.ShowDialog() == DialogResult.OK)
-    {
-    try
-     {
- int invoiceId = int.Parse(txtID.Text);
-        _invoiceService.ExportInvoiceToExcel(invoiceId, sfd.FileName);
+                MessageBox.Show("Vui lòng chọn hóa đơn cần xuất!");
+                return;
+            }
+
+            using (SaveFileDialog sfd = new SaveFileDialog() { Filter = "Excel|*.xlsx", FileName = $"HoaDon_{txtID.Text}.xlsx" })
+            {
+                if (sfd.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        int invoiceId = int.Parse(txtID.Text);
+                        await _invoiceService.ExportInvoiceToExcelAsync(invoiceId, sfd.FileName);
            MessageBox.Show("Xuất hóa đơn thành công!");
       }
             catch (Exception ex) { MessageBox.Show("Lỗi: " + ex.Message); }
@@ -161,15 +161,15 @@ LoadBookingsForInvoice();
           }
         }
 
-    private void btnExportAll_Click(object sender, EventArgs e)
-  {
-         using (SaveFileDialog sfd = new SaveFileDialog() { Filter = "Excel|*.xlsx", FileName = "DanhSachHoaDon.xlsx" })
- {
-    if (sfd.ShowDialog() == DialogResult.OK)
-         {
-     try
-    {
-   _invoiceService.ExportAllInvoicesToExcel(sfd.FileName);
+        private async void btnExportAll_Click(object sender, EventArgs e)
+        {
+            using (SaveFileDialog sfd = new SaveFileDialog() { Filter = "Excel|*.xlsx", FileName = "DanhSachHoaDon.xlsx" })
+            {
+                if (sfd.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        await _invoiceService.ExportAllInvoicesToExcelAsync(sfd.FileName);
       MessageBox.Show("Xuất danh sách hóa đơn thành công!");
           }
            catch (Exception ex) { MessageBox.Show("Lỗi: " + ex.Message); }
@@ -177,11 +177,12 @@ LoadBookingsForInvoice();
  }
         }
 
-        private void btnRefresh_Click(object sender, EventArgs e)
+        private async void btnRefresh_Click(object sender, EventArgs e)
         {
-   LoadInvoices();
-      LoadBookingsForInvoice();
-       ResetForm();
+            await _invoiceService.RefreshCacheAsync();
+            await LoadInvoicesAsync();
+            await LoadBookingsForInvoiceAsync();
+            ResetForm();
         }
 
     private void dgvInvoices_CellClick(object sender, DataGridViewCellEventArgs e)

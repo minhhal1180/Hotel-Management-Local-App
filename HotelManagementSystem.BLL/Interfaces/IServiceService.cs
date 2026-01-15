@@ -1,5 +1,6 @@
 ﻿using HotelManagementSystem.Entities.Entities;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace HotelManagementSystem.BLL.Interfaces
 {
@@ -8,18 +9,19 @@ namespace HotelManagementSystem.BLL.Interfaces
     /// </summary>
     public interface IServiceService
     {
-        IEnumerable<Service> GetServices(string keyword = "");
-        Service? GetServiceById(int id);
-        void AddService(Service service);
-        void UpdateService(Service service);
-        void DeleteService(int id);
+        Task<IEnumerable<Service>> GetServicesAsync(string keyword = "");
+        Task<Service?> GetServiceByIdAsync(int id);
+        Task AddServiceAsync(Service service);
+        Task UpdateServiceAsync(Service service);
+        Task DeleteServiceAsync(int id);
 
         // Thêm d?ch v? vào booking
-        void AddServiceToBooking(int bookingId, int serviceId, int quantity, string? note = null);
-        void RemoveServiceFromBooking(int bookingServiceId);
+        Task AddServiceToBookingAsync(int bookingId, int serviceId, int quantity, string? note = null);
+        Task RemoveServiceFromBookingAsync(int bookingServiceId);
 
-        // L?y d?ch v? c?a booking
-        IEnumerable<BookingService> GetBookingServices(int bookingId);
+        // Lấy dịch vụ của booking
+        Task<IEnumerable<BookingService>> GetBookingServicesAsync(int bookingId);
         void RefreshCache();
+        Task RefreshCacheAsync();
     }
 }

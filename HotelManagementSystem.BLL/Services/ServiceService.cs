@@ -4,6 +4,7 @@ using HotelManagementSystem.Entities.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using BookingServiceEntity = HotelManagementSystem.Entities.Entities.BookingService;
 
 namespace HotelManagementSystem.BLL.Services
@@ -23,11 +24,17 @@ namespace HotelManagementSystem.BLL.Services
             _cachedServices = _unitOfWork.ServiceRepository.GetAll().ToList();
         }
 
-        public IEnumerable<Service> GetServices(string keyword = "")
+        public async Task RefreshCacheAsync()
+        {
+            var services = await _unitOfWork.ServiceRepository.GetAllAsync();
+            _cachedServices = services.ToList();
+        }
+
+        public async Task<IEnumerable<Service>> GetServicesAsync(string keyword = "")
         {
             if (_cachedServices == null)
             {
-                RefreshCache();
+                await RefreshCacheAsync();
             }
 
             if (string.IsNullOrEmpty(keyword))
@@ -41,16 +48,16 @@ namespace HotelManagementSystem.BLL.Services
                  ).ToList();
         }
 
-        public Service? GetServiceById(int id)
+        public async Task<Service?> GetServiceByIdAsync(int id)
         {
-            if (_cachedServices == null) RefreshCache();
+            if (_cachedServices == null) await RefreshCacheAsync();
             return _cachedServices!.FirstOrDefault(s => s.ServiceId == id);
         }
 
-        public void AddService(Service service)
+        public async Task AddServiceAsync(Service service)
         {
             _unitOfWork.ServiceRepository.Insert(service);
-            _unitOfWork.Save();
+            await _unitOfWork.SaveAsync();
 
             if (_cachedServices != null)
             {
@@ -58,10 +65,10 @@ namespace HotelManagementSystem.BLL.Services
             }
         }
 
-        public void UpdateService(Service service)
+        public async Task UpdateServiceAsync(Service service)
         {
             _unitOfWork.ServiceRepository.Update(service);
-            _unitOfWork.Save();
+            await _unitOfWork.SaveAsync();
 
             if (_cachedServices != null)
             {
@@ -76,41 +83,42 @@ namespace HotelManagementSystem.BLL.Services
             }
         }
 
-        public void DeleteService(int id)
+        public async Task DeleteServiceAsync(int id)
         {
-            // Ki?m tra d?ch v? đ? đư?c s? d?ng chưa
-            var isUsed = _unitOfWork.BookingServiceRepository.GetAll(
-             filter: bs => bs.ServiceId == id
-        ).Any();
+            // Kiểm tra dịch vụ đã được sử dụng chưa
+            var existingBookingServices = await _unitOfWork.BookingServiceRepository.GetAllAsync(
+                filter: bs => bs.ServiceId == id
+            );
+            var isUsed = existingBookingServices.Any();
 
             if (isUsed)
             {
-                // Soft delete - ch? đánh d?u không ho?t đ?ng
-                var service = _unitOfWork.ServiceRepository.GetByID(id);
+                // Soft delete - chỉ đánh dấu không hoạt động
+                var service = await _unitOfWork.ServiceRepository.GetByIDAsync(id);
                 if (service != null)
                 {
                     service.IsActive = false;
                     _unitOfWork.ServiceRepository.Update(service);
-                    _unitOfWork.Save();
+                    await _unitOfWork.SaveAsync();
                 }
             }
             else
             {
-                _unitOfWork.ServiceRepository.Delete(id);
-                _unitOfWork.Save();
+                await _unitOfWork.ServiceRepository.DeleteAsync(id);
+                await _unitOfWork.SaveAsync();
             }
 
-            RefreshCache();
+            await RefreshCacheAsync();
         }
 
-        public void AddServiceToBooking(int bookingId, int serviceId, int quantity, string? note = null)
+        public async Task AddServiceToBookingAsync(int bookingId, int serviceId, int quantity, string? note = null)
         {
-            var booking = _unitOfWork.BookingRepository.GetByID(bookingId);
-            if (booking == null) throw new Exception("Không t?m th?y booking!");
-            if (booking.Status != "CheckedIn") throw new Exception("Ch? có th? thêm d?ch v? khi khách đang ?!");
+            var booking = await _unitOfWork.BookingRepository.GetByIDAsync(bookingId);
+            if (booking == null) throw new Exception("Không tìm thấy booking!");
+            if (booking.Status != "CheckedIn") throw new Exception("Chỉ có thể thêm dịch vụ khi khách đang ở!");
 
-            var service = _unitOfWork.ServiceRepository.GetByID(serviceId);
-            if (service == null) throw new Exception("Không t?m th?y d?ch v?!");
+            var service = await _unitOfWork.ServiceRepository.GetByIDAsync(serviceId);
+            if (service == null) throw new Exception("Không tìm thấy dịch vụ!");
 
             var bookingService = new BookingServiceEntity
             {
@@ -123,24 +131,24 @@ namespace HotelManagementSystem.BLL.Services
             };
 
             _unitOfWork.BookingServiceRepository.Insert(bookingService);
-            _unitOfWork.Save();
+            await _unitOfWork.SaveAsync();
         }
 
-        public void RemoveServiceFromBooking(int bookingServiceId)
+        public async Task RemoveServiceFromBookingAsync(int bookingServiceId)
         {
-            var bookingService = _unitOfWork.BookingServiceRepository.GetByID(bookingServiceId);
-            if (bookingService == null) throw new Exception("Không t?m th?y d?ch v?!");
+            var bookingService = await _unitOfWork.BookingServiceRepository.GetByIDAsync(bookingServiceId);
+            if (bookingService == null) throw new Exception("Không tìm thấy dịch vụ!");
 
-            _unitOfWork.BookingServiceRepository.Delete(bookingServiceId);
-            _unitOfWork.Save();
+            await _unitOfWork.BookingServiceRepository.DeleteAsync(bookingServiceId);
+            await _unitOfWork.SaveAsync();
         }
 
-        public IEnumerable<BookingServiceEntity> GetBookingServices(int bookingId)
+        public async Task<IEnumerable<BookingServiceEntity>> GetBookingServicesAsync(int bookingId)
         {
-            return _unitOfWork.BookingServiceRepository.GetAll(
+            return await _unitOfWork.BookingServiceRepository.GetAllAsync(
             filter: bs => bs.BookingId == bookingId,
             includeProperties: "Service"
-            ).ToList();
+            );
         }
     }
 }

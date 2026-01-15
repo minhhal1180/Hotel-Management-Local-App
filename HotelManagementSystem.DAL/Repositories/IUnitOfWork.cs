@@ -1,6 +1,7 @@
 ﻿using HotelManagementSystem.Entities.Entities;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
+using System.Threading.Tasks;
 
 namespace HotelManagementSystem.DAL.Repositories
 {
@@ -17,8 +18,12 @@ namespace HotelManagementSystem.DAL.Repositories
         IGenericRepository<AppUser> AppUserRepository { get; }
 
         void Save(); // Hàm Commit quan trọng (Lưu tất cả thay đổi cùng lúc)
+        Task SaveAsync();
         IDbContextTransaction BeginTransaction();
+        Task<IDbContextTransaction> BeginTransactionAsync();
         void Commit();
+        Task CommitAsync();
         void Rollback();
+        Task RollbackAsync();
     }
 }

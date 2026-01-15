@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace HotelManagementSystem.BLL.Services
 {
@@ -27,11 +28,20 @@ namespace HotelManagementSystem.BLL.Services
             ).ToList();
         }
 
-        public IEnumerable<Booking> GetBookings(string keyword = "")
+        public async Task RefreshCacheAsync()
+        {
+            var bookings = await _unitOfWork.BookingRepository.GetAllAsync(
+                includeProperties: "Guest,Room,Room.RoomType,BookingServices,Invoice",
+                orderBy: q => q.OrderByDescending(b => b.CreatedDate)
+            );
+            _cachedBookings = bookings.ToList();
+        }
+
+        public async Task<IEnumerable<Booking>> GetBookingsAsync(string keyword = "")
         {
             if (_cachedBookings == null)
             {
-                RefreshCache();
+                await RefreshCacheAsync();
             }
 
             if (string.IsNullOrEmpty(keyword))
@@ -46,52 +56,54 @@ namespace HotelManagementSystem.BLL.Services
             ).ToList();
         }
 
-        public Booking? GetBookingById(int id)
+        public async Task<Booking?> GetBookingByIdAsync(int id)
         {
-            if (_cachedBookings == null) RefreshCache();
+            if (_cachedBookings == null) await RefreshCacheAsync();
             return _cachedBookings!.FirstOrDefault(b => b.BookingId == id);
         }
 
-        public IEnumerable<Booking> GetBookingsByGuest(int guestId)
+        public async Task<IEnumerable<Booking>> GetBookingsByGuestAsync(int guestId)
         {
-            if (_cachedBookings == null) RefreshCache();
+            if (_cachedBookings == null) await RefreshCacheAsync();
             return _cachedBookings!.Where(b => b.GuestId == guestId).ToList();
         }
 
-        public IEnumerable<Booking> GetCurrentBookings()
+        public async Task<IEnumerable<Booking>> GetCurrentBookingsAsync()
         {
-            if (_cachedBookings == null) RefreshCache();
+            if (_cachedBookings == null) await RefreshCacheAsync();
             return _cachedBookings!.Where(b => b.Status == "CheckedIn").ToList();
         }
 
-        public void CreateBooking(int guestId, int roomId, DateTime checkIn, DateTime checkOut, string? note = null)
+        public async Task CreateBookingAsync(int guestId, int roomId, DateTime checkIn, DateTime checkOut, string? note = null)
         {
-            var guest = _unitOfWork.GuestRepository.GetByID(guestId);
-            if (guest == null) throw new Exception("Không t?m th?y khách hàng!");
+            var guest = await _unitOfWork.GuestRepository.GetByIDAsync(guestId);
+            if (guest == null) throw new Exception("Không tìm thấy khách hàng!");
 
-            var room = _unitOfWork.RoomRepository.GetAll(
+            var rooms = await _unitOfWork.RoomRepository.GetAllAsync(
                 filter: r => r.RoomId == roomId,
                 includeProperties: "RoomType"
-            ).FirstOrDefault();
-            if (room == null) throw new Exception("Không t?m th?y ph?ng!");
+            );
+            var room = rooms.FirstOrDefault();
+            if (room == null) throw new Exception("Không tìm thấy phòng!");
 
-            // Ki?m tra ph?ng có tr?ng trong kho?ng th?i gian không
-            var isBooked = _unitOfWork.BookingRepository.GetAll(
+            // Kiểm tra phòng có trống trong khoảng thời gian không
+            var existingBookings = await _unitOfWork.BookingRepository.GetAllAsync(
                 filter: b => b.RoomId == roomId &&
                              b.Status != "Cancelled" && b.Status != "CheckedOut" &&
                              ((checkIn >= b.CheckInDate && checkIn < b.CheckOutDate) ||
                               (checkOut > b.CheckInDate && checkOut <= b.CheckOutDate) ||
                               (checkIn <= b.CheckInDate && checkOut >= b.CheckOutDate))
-            ).Any();
+            );
+            var isBooked = existingBookings.Any();
 
-            if (isBooked) throw new Exception("Ph?ng đ? đư?c đ?t trong kho?ng th?i gian này!");
+            if (isBooked) throw new Exception("Phòng đã được đặt trong khoảng thời gian này!");
 
-            // Tính s? đêm và t?ng ti?n ph?ng
+            // Tính số đêm và tổng tiền phòng
             int nights = (int)(checkOut - checkIn).TotalDays;
             if (nights <= 0) nights = 1;
             decimal totalAmount = nights * (room.RoomType?.PricePerNight ?? 0);
 
-            using var transaction = _unitOfWork.BeginTransaction();
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
             try
             {
                 var booking = new Booking
@@ -106,104 +118,104 @@ namespace HotelManagementSystem.BLL.Services
                     CreatedDate = DateTime.Now
                 };
                 _unitOfWork.BookingRepository.Insert(booking);
-                _unitOfWork.Save();
-                _unitOfWork.Commit();
+                await _unitOfWork.SaveAsync();
+                await _unitOfWork.CommitAsync();
 
-                RefreshCache();
+                await RefreshCacheAsync();
             }
             catch
             {
-                _unitOfWork.Rollback();
+                await _unitOfWork.RollbackAsync();
                 throw;
             }
         }
 
-        public void CheckIn(int bookingId)
+        public async Task CheckInAsync(int bookingId)
         {
-            var booking = _unitOfWork.BookingRepository.GetByID(bookingId);
-            if (booking == null) throw new Exception("Không t?m th?y booking!");
-            if (booking.Status != "Booked") throw new Exception("Booking không ? tr?ng thái ch? nh?n ph?ng!");
+            var booking = await _unitOfWork.BookingRepository.GetByIDAsync(bookingId);
+            if (booking == null) throw new Exception("Không tìm thấy booking!");
+            if (booking.Status != "Booked") throw new Exception("Booking không ở trạng thái chờ nhận phòng!");
 
-            using var transaction = _unitOfWork.BeginTransaction();
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
             try
             {
                 booking.Status = "CheckedIn";
-                booking.CheckInDate = DateTime.Now; // C?p nh?t ngày nh?n ph?ng th?c t?
+                booking.CheckInDate = DateTime.Now; // Cập nhật ngày nhận phòng thực tế
                 _unitOfWork.BookingRepository.Update(booking);
 
-                // C?p nh?t tr?ng thái ph?ng
-                var room = _unitOfWork.RoomRepository.GetByID(booking.RoomId);
+                // Cập nhật trạng thái phòng
+                var room = await _unitOfWork.RoomRepository.GetByIDAsync(booking.RoomId);
                 if (room != null)
                 {
                     room.Status = "Occupied";
                     _unitOfWork.RoomRepository.Update(room);
                 }
 
-                _unitOfWork.Save();
-                _unitOfWork.Commit();
-                RefreshCache();
+                await _unitOfWork.SaveAsync();
+                await _unitOfWork.CommitAsync();
+                await RefreshCacheAsync();
             }
             catch
             {
-                _unitOfWork.Rollback();
+                await _unitOfWork.RollbackAsync();
                 throw;
             }
         }
 
-        public void CheckOut(int bookingId)
+        public async Task CheckOutAsync(int bookingId)
         {
-            var booking = _unitOfWork.BookingRepository.GetByID(bookingId);
-            if (booking == null) throw new Exception("Không t?m th?y booking!");
-            if (booking.Status != "CheckedIn") throw new Exception("Khách chưa nh?n ph?ng!");
+            var booking = await _unitOfWork.BookingRepository.GetByIDAsync(bookingId);
+            if (booking == null) throw new Exception("Không tìm thấy booking!");
+            if (booking.Status != "CheckedIn") throw new Exception("Khách chưa nhận phòng!");
 
-            using var transaction = _unitOfWork.BeginTransaction();
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
             try
             {
                 booking.Status = "CheckedOut";
                 booking.ActualCheckOut = DateTime.Now;
                 _unitOfWork.BookingRepository.Update(booking);
 
-                // C?p nh?t tr?ng thái ph?ng
-                var room = _unitOfWork.RoomRepository.GetByID(booking.RoomId);
+                // Cập nhật trạng thái phòng
+                var room = await _unitOfWork.RoomRepository.GetByIDAsync(booking.RoomId);
                 if (room != null)
                 {
                     room.Status = "Available";
                     _unitOfWork.RoomRepository.Update(room);
                 }
 
-                _unitOfWork.Save();
-                _unitOfWork.Commit();
-                RefreshCache();
+                await _unitOfWork.SaveAsync();
+                await _unitOfWork.CommitAsync();
+                await RefreshCacheAsync();
             }
             catch
             {
-                _unitOfWork.Rollback();
+                await _unitOfWork.RollbackAsync();
                 throw;
             }
         }
 
-        public void CancelBooking(int bookingId)
+        public async Task CancelBookingAsync(int bookingId)
         {
-            var booking = _unitOfWork.BookingRepository.GetByID(bookingId);
-            if (booking == null) throw new Exception("Không t?m th?y booking!");
-            if (booking.Status == "CheckedIn") throw new Exception("Không th? h?y booking khi khách đang ?!");
-            if (booking.Status == "CheckedOut") throw new Exception("Booking đ? hoàn t?t!");
+            var booking = await _unitOfWork.BookingRepository.GetByIDAsync(bookingId);
+            if (booking == null) throw new Exception("Không tìm thấy booking!");
+            if (booking.Status == "CheckedIn") throw new Exception("Không thể hủy booking khi khách đang ở!");
+            if (booking.Status == "CheckedOut") throw new Exception("Booking đã hoàn tất!");
 
             booking.Status = "Cancelled";
             _unitOfWork.BookingRepository.Update(booking);
-            _unitOfWork.Save();
-            RefreshCache();
+            await _unitOfWork.SaveAsync();
+            await RefreshCacheAsync();
         }
 
-        public void ExportBookingHistoryToExcel(string filePath)
+        public async Task ExportBookingHistoryToExcelAsync(string filePath)
         {
-            var bookings = GetBookings("").ToList();
+            var bookings = (await GetBookingsAsync("")).ToList();
 
             using (var package = new ExcelPackage())
             {
-                var sheet = package.Workbook.Worksheets.Add("L?ch s? Đ?t ph?ng");
+                var sheet = package.Workbook.Worksheets.Add("Lịch sử Đặt phòng");
 
-                string[] headers = { "M? ĐP", "Khách hàng", "Ph?ng", "Lo?i ph?ng", "Ngày đ?t", "Check-in", "Check-out", "Ti?n ph?ng", "Tr?ng thái" };
+                string[] headers = { "Mã ĐP", "Khách hàng", "Phòng", "Loại phòng", "Ngày đặt", "Check-in", "Check-out", "Tiền phòng", "Trạng thái" };
                 for (int i = 0; i < headers.Length; i++)
                     sheet.Cells[1, i + 1].Value = headers[i];
 
@@ -222,7 +234,7 @@ namespace HotelManagementSystem.BLL.Services
                 }
 
                 sheet.Cells.AutoFitColumns();
-                package.SaveAs(new FileInfo(filePath));
+                await package.SaveAsAsync(new FileInfo(filePath));
             }
         }
     }

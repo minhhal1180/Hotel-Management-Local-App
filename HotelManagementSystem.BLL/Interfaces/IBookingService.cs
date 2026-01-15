@@ -1,5 +1,7 @@
 ﻿using HotelManagementSystem.Entities.Entities;
 using System.Collections.Generic;
+using System.Threading.Tasks;
+using System;
 
 namespace HotelManagementSystem.BLL.Interfaces
 {
@@ -9,23 +11,23 @@ namespace HotelManagementSystem.BLL.Interfaces
     public interface IBookingService
     {
         // Đ?t ph?ng
-        void CreateBooking(int guestId, int roomId, DateTime checkIn, DateTime checkOut, string? note = null);
+        Task CreateBookingAsync(int guestId, int roomId, DateTime checkIn, DateTime checkOut, string? note = null);
 
         // Nh?n ph?ng (Check-in)
-        void CheckIn(int bookingId);
+        Task CheckInAsync(int bookingId);
 
         // Tr? ph?ng (Check-out)
-        void CheckOut(int bookingId);
+        Task CheckOutAsync(int bookingId);
 
         // H?y đ?t ph?ng
-        void CancelBooking(int bookingId);
+        Task CancelBookingAsync(int bookingId);
 
         // L?y danh sách booking
-        IEnumerable<Booking> GetBookings(string keyword = "");
-        Booking? GetBookingById(int id);
-        IEnumerable<Booking> GetBookingsByGuest(int guestId);
-        IEnumerable<Booking> GetCurrentBookings(); // Đang ?
+        Task<IEnumerable<Booking>> GetBookingsAsync(string keyword = "");
+        Task<Booking?> GetBookingByIdAsync(int id);
+        Task<IEnumerable<Booking>> GetBookingsByGuestAsync(int guestId);
+        Task<IEnumerable<Booking>> GetCurrentBookingsAsync(); // Đang ?
 
-        void ExportBookingHistoryToExcel(string filePath);
+        Task ExportBookingHistoryToExcelAsync(string filePath);
     }
 }

@@ -17,16 +17,16 @@ namespace HotelManagementSystem.Forms
             this.Load += FrmServices_Load;
         }
 
-        private void FrmServices_Load(object? sender, EventArgs e)
+        private async void FrmServices_Load(object? sender, EventArgs e)
         {
-            LoadServices();
+            await LoadServicesAsync();
         }
 
-        private void LoadServices()
+        private async System.Threading.Tasks.Task LoadServicesAsync()
         {
             try
             {
-                var services = _serviceService.GetServices();
+                var services = await _serviceService.GetServicesAsync();
                 var displayList = services.Select(s => new
                 {
                     s.ServiceId,
@@ -50,7 +50,7 @@ namespace HotelManagementSystem.Forms
             }
         }
 
-        private void btnAdd_Click(object sender, EventArgs e)
+        private async void btnAdd_Click(object sender, EventArgs e)
         {
             if (!ValidateInput()) return;
 
@@ -64,9 +64,9 @@ namespace HotelManagementSystem.Forms
                     IsActive = chkActive.Checked
                 };
 
-                _serviceService.AddService(service);
+                await _serviceService.AddServiceAsync(service);
                 MessageBox.Show("Thêm dịch vụ thành công!");
-                LoadServices();
+                await LoadServicesAsync();
                 ResetForm();
             }
             catch (Exception ex)
@@ -75,7 +75,7 @@ namespace HotelManagementSystem.Forms
             }
         }
 
-        private void btnUpdate_Click(object sender, EventArgs e)
+        private async void btnUpdate_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(txtID.Text))
             {
@@ -87,7 +87,7 @@ namespace HotelManagementSystem.Forms
             try
             {
                 int serviceId = int.Parse(txtID.Text);
-                var service = _serviceService.GetServiceById(serviceId);
+                var service = await _serviceService.GetServiceByIdAsync(serviceId);
                 if (service != null)
                 {
                     service.ServiceName = txtServiceName.Text.Trim();
@@ -95,9 +95,9 @@ namespace HotelManagementSystem.Forms
                     service.Description = txtDescription.Text.Trim();
                     service.IsActive = chkActive.Checked;
 
-                    _serviceService.UpdateService(service);
+                    await _serviceService.UpdateServiceAsync(service);
                     MessageBox.Show("Cập nhật dịch vụ thành công!");
-                    LoadServices();
+                    await LoadServicesAsync();
                 }
             }
             catch (Exception ex)
@@ -106,7 +106,7 @@ namespace HotelManagementSystem.Forms
             }
         }
 
-        private void btnDelete_Click(object sender, EventArgs e)
+        private async void btnDelete_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(txtID.Text))
             {
@@ -120,9 +120,9 @@ namespace HotelManagementSystem.Forms
                 try
                 {
                     int serviceId = int.Parse(txtID.Text);
-                    _serviceService.DeleteService(serviceId);
+                    await _serviceService.DeleteServiceAsync(serviceId);
                     MessageBox.Show("Xóa dịch vụ thành công!");
-                    LoadServices();
+                    await LoadServicesAsync();
                     ResetForm();
                 }
                 catch (Exception ex)
@@ -132,10 +132,10 @@ namespace HotelManagementSystem.Forms
             }
         }
 
-        private void btnRefresh_Click(object sender, EventArgs e)
+        private async void btnRefresh_Click(object sender, EventArgs e)
         {
-            _serviceService.RefreshCache();
-            LoadServices();
+            await _serviceService.RefreshCacheAsync();
+            await LoadServicesAsync();
             ResetForm();
         }
 

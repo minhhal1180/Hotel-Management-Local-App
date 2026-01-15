@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 
 namespace HotelManagementSystem.DAL.Repositories
@@ -43,9 +44,40 @@ namespace HotelManagementSystem.DAL.Repositories
             }
         }
 
+        public virtual async Task<IEnumerable<T>> GetAllAsync(Expression<Func<T, bool>>? filter = null,
+            Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,
+            string includeProperties = "")
+        {
+            IQueryable<T> query = dbSet;
+
+            if (filter != null)
+            {
+                query = query.Where(filter);
+            }
+
+            foreach (var includeProperty in includeProperties.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                query = query.Include(includeProperty);
+            }
+
+            if (orderBy != null)
+            {
+                return await orderBy(query).ToListAsync();
+            }
+            else
+            {
+                return await query.ToListAsync();
+            }
+        }
+
         public virtual T? GetByID(object id)
         {
             return dbSet.Find(id);
+        }
+
+        public virtual async Task<T?> GetByIDAsync(object id)
+        {
+            return await dbSet.FindAsync(id);
         }
 
         public virtual void Insert(T entity)
@@ -56,6 +88,15 @@ namespace HotelManagementSystem.DAL.Repositories
         public virtual void Delete(object id)
         {
             T? entityToDelete = dbSet.Find(id);
+            if (entityToDelete != null)
+            {
+                Delete(entityToDelete);
+            }
+        }
+
+        public virtual async Task DeleteAsync(object id)
+        {
+            T? entityToDelete = await dbSet.FindAsync(id);
             if (entityToDelete != null)
             {
                 Delete(entityToDelete);

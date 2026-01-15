@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace HotelManagementSystem.BLL.Services
 {
@@ -28,65 +29,74 @@ namespace HotelManagementSystem.BLL.Services
             _cachedRoomTypes = _unitOfWork.RoomTypeRepository.GetAll().ToList();
         }
 
-        public IEnumerable<RoomType> GetAllRoomTypes()
+        public async Task RefreshCacheAsync()
+        {
+            var rooms = await _unitOfWork.RoomRepository.GetAllAsync(includeProperties: "RoomType");
+            _cachedRooms = rooms.ToList();
+            var types = await _unitOfWork.RoomTypeRepository.GetAllAsync();
+            _cachedRoomTypes = types.ToList();
+        }
+
+        public async Task<IEnumerable<RoomType>> GetAllRoomTypesAsync()
         {
             if (_cachedRoomTypes == null)
             {
-                _cachedRoomTypes = _unitOfWork.RoomTypeRepository.GetAll().ToList();
+                var types = await _unitOfWork.RoomTypeRepository.GetAllAsync();
+                _cachedRoomTypes = types.ToList();
             }
             return _cachedRoomTypes;
         }
 
-        public IEnumerable<Room> GetRooms(string keyword = "")
+        public async Task<IEnumerable<Room>> GetRoomsAsync(string keyword = "")
         {
             if (_cachedRooms == null)
             {
-                _cachedRooms = _unitOfWork.RoomRepository.GetAll(includeProperties: "RoomType").ToList();
+                await RefreshCacheAsync();
             }
 
             if (string.IsNullOrEmpty(keyword))
             {
-                return _cachedRooms;
+                return _cachedRooms!;
             }
             else
             {
                 keyword = keyword.ToLower();
-                return _cachedRooms.Where(r =>
+                return _cachedRooms!.Where(r =>
                     r.RoomNumber.ToLower().Contains(keyword) ||
                     (r.RoomType?.RoomTypeName?.ToLower().Contains(keyword) ?? false)
                 ).ToList();
             }
         }
 
-        public Room? GetRoomById(int id)
+        public async Task<Room?> GetRoomByIdAsync(int id)
         {
             if (_cachedRooms != null)
             {
                 return _cachedRooms.FirstOrDefault(r => r.RoomId == id);
             }
-            return _unitOfWork.RoomRepository.GetByID(id);
+            return await _unitOfWork.RoomRepository.GetByIDAsync(id);
         }
 
-        public void AddRoom(Room room)
+        public async Task AddRoomAsync(Room room)
         {
             _unitOfWork.RoomRepository.Insert(room);
-            _unitOfWork.Save();
+            await _unitOfWork.SaveAsync();
 
             if (_cachedRooms != null)
             {
                 if (room.RoomType == null && room.RoomTypeId > 0)
                 {
-                    if (_cachedRoomTypes == null) GetAllRoomTypes();
+                    if (_cachedRoomTypes == null) await GetAllRoomTypesAsync();
                     room.RoomType = _cachedRoomTypes?.FirstOrDefault(rt => rt.RoomTypeId == room.RoomTypeId)!;
                 }
                 _cachedRooms.Add(room);
             }
         }
 
-        public void UpdateRoom(Room room)
+        public async Task UpdateRoomAsync(Room room)
         {
             _unitOfWork.RoomRepository.Update(room);
-            _unitOfWork.Save();
+            await _unitOfWork.SaveAsync();
 
             if (_cachedRooms != null)
             {
@@ -101,27 +111,25 @@ namespace HotelManagementSystem.BLL.Services
 
                     if (itemInRam.RoomType?.RoomTypeId != room.RoomTypeId)
                     {
-                        if (_cachedRoomTypes == null) GetAllRoomTypes();
+                        if (_cachedRoomTypes == null) await GetAllRoomTypesAsync();
                         itemInRam.RoomType = _cachedRoomTypes?.FirstOrDefault(rt => rt.RoomTypeId == room.RoomTypeId)!;
                     }
                 }
             }
         }
 
-        public void DeleteRoom(int id)
+        public async Task DeleteRoomAsync(int id)
         {
-            // Ki?m tra ph?ng có booking không
-            var hasBooking = _unitOfWork.BookingRepository.GetAll(
-                filter: b => b.RoomId == id
-            ).Any();
+            var bookings = await _unitOfWork.BookingRepository.GetAllAsync(filter: b => b.RoomId == id);
+            var hasBooking = bookings.Any();
 
             if (hasBooking)
             {
-                throw new InvalidOperationException("Ph?ng đ? có l?ch s? đ?t, không th? xóa!");
+                throw new InvalidOperationException("Phòng đã có lịch sử đặt, không thể xóa!");
             }
 
-            _unitOfWork.RoomRepository.Delete(id);
-            _unitOfWork.Save();
+            await _unitOfWork.RoomRepository.DeleteAsync(id);
+            await _unitOfWork.SaveAsync();
 
             if (_cachedRooms != null)
             {
@@ -130,29 +138,28 @@ namespace HotelManagementSystem.BLL.Services
             }
         }
 
-        public IEnumerable<Room> GetAvailableRooms(DateTime checkIn, DateTime checkOut)
+        public async Task<IEnumerable<Room>> GetAvailableRoomsAsync(DateTime checkIn, DateTime checkOut)
         {
-            // L?y danh sách ph?ng đang b?n trong kho?ng th?i gian
-            var busyRoomIds = _unitOfWork.BookingRepository.GetAll(
+            var busyBookings = await _unitOfWork.BookingRepository.GetAllAsync(
                 filter: b => b.Status != "Cancelled" && b.Status != "CheckedOut" &&
                              ((checkIn >= b.CheckInDate && checkIn < b.CheckOutDate) ||
                               (checkOut > b.CheckInDate && checkOut <= b.CheckOutDate) ||
                               (checkIn <= b.CheckInDate && checkOut >= b.CheckOutDate))
-            ).Select(b => b.RoomId).Distinct().ToList();
+            );
+            var busyRoomIds = busyBookings.Select(b => b.RoomId).Distinct().ToList();
 
-            // Tr? v? ph?ng không b?n và đang Available
-            if (_cachedRooms == null) RefreshCache();
+            if (_cachedRooms == null) await RefreshCacheAsync();
 
             return _cachedRooms!.Where(r =>
                 r.Status == "Available" && !busyRoomIds.Contains(r.RoomId)
             ).ToList();
         }
 
-        public void ImportRoomsFromExcel(string filePath)
+        public async Task ImportRoomsFromExcelAsync(string filePath)
         {
-            if (!File.Exists(filePath)) throw new FileNotFoundException("Không t?m th?y file!");
+            if (!File.Exists(filePath)) throw new FileNotFoundException("Không tìm thấy file!");
 
-            if (_cachedRoomTypes == null) GetAllRoomTypes();
+            if (_cachedRoomTypes == null) await GetAllRoomTypesAsync();
 
             using (var package = new ExcelPackage(new FileInfo(filePath)))
             {
@@ -184,19 +191,19 @@ namespace HotelManagementSystem.BLL.Services
                     }
                     catch { }
                 }
-                _unitOfWork.Save();
+                await _unitOfWork.SaveAsync();
             }
-            RefreshCache();
+            await RefreshCacheAsync();
         }
 
-        public void ExportRoomsToExcel(string filePath)
+        public async Task ExportRoomsToExcelAsync(string filePath)
         {
-            var rooms = GetRooms().ToList();
+            var rooms = (await GetRoomsAsync()).ToList();
             using (var package = new ExcelPackage())
             {
-                var sheet = package.Workbook.Worksheets.Add("Danh sách Ph?ng");
+                var sheet = package.Workbook.Worksheets.Add("Danh sách Phòng");
 
-                string[] headers = { "M? ph?ng", "S? ph?ng", "Lo?i ph?ng", "T?ng", "Tr?ng thái", "Giá/đêm", "Mô t?" };
+                string[] headers = { "Mã phòng", "Số phòng", "Loại phòng", "Tầng", "Trạng thái", "Giá/đêm", "Mô tả" };
                 for (int i = 0; i < headers.Length; i++)
                     sheet.Cells[1, i + 1].Value = headers[i];
 
@@ -213,7 +220,7 @@ namespace HotelManagementSystem.BLL.Services
                 }
 
                 sheet.Cells.AutoFitColumns();
-                package.SaveAs(new FileInfo(filePath));
+                await package.SaveAsAsync(new FileInfo(filePath));
             }
         }
     }
