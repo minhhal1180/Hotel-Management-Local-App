@@ -33,26 +33,26 @@ Hệ thống Quản lý Khách sạn giải quyết các vấn đề thực tế
 | **Lập hóa đơn** | Tổng hợp tiền phòng + dịch vụ, giảm giá, xuất Excel |
 
 #### Vấn đề thực tế được giải quyết
-- ✅ Tránh đặt phòng trùng lịch (Double Booking)
-- ✅ Tự động tính tiền theo số đêm và giá phòng
-- ✅ Theo dõi lịch sử đặt phòng của khách
-- ✅ Quản lý dịch vụ đi kèm trong mỗi lần thuê phòng
-- ✅ Xuất báo cáo Excel cho kế toán
+-  Tránh đặt phòng trùng lịch (Double Booking)
+-  Tự động tính tiền theo số đêm và giá phòng
+-  Theo dõi lịch sử đặt phòng của khách
+-  Quản lý dịch vụ đi kèm trong mỗi lần thuê phòng
+-  Xuất báo cáo Excel cho kế toán
 
 ### 1.2 Cấu trúc Component (3-Layer Architecture)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    PRESENTATION LAYER                        │
-│              (HotelManagementSystem.Forms)                   │
+│                    PRESENTATION LAYER                       │
+│              (HotelManagementSystem.Forms)                  │
 │  FrmLogin | FrmMain | FrmRooms | FrmGuests | FrmBooking...  │
 └─────────────────────────┬───────────────────────────────────┘
                           │ Constructor Injection
                           ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                   BUSINESS LOGIC LAYER                       │
-│               (HotelManagementSystem.BLL)                    │
-│                                                              │
+│                   BUSINESS LOGIC LAYER                      │
+│               (HotelManagementSystem.BLL)                   │
+│                                                             │
 │  ┌─────────────┐        ┌─────────────────────────────────┐ │
 │  │ Interfaces/ │        │ Services/                       │ │
 │  ├─────────────┤        ├─────────────────────────────────┤ │
@@ -67,9 +67,9 @@ Hệ thống Quản lý Khách sạn giải quyết các vấn đề thực tế
                           │ IUnitOfWork Injection
                           ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                   DATA ACCESS LAYER                          │
-│               (HotelManagementSystem.DAL)                    │
-│                                                              │
+│                   DATA ACCESS LAYER                         │
+│               (HotelManagementSystem.DAL)                   │
+│                                                             │
 │  ┌─────────────────────────────────────────────────────────┐│
 │  │ Repositories/                                           ││
 │  │  - IGenericRepository<T> : Interface CRUD chung         ││
@@ -77,7 +77,7 @@ Hệ thống Quản lý Khách sạn giải quyết các vấn đề thực tế
 │  │  - IUnitOfWork           : Quản lý Transaction          ││
 │  │  - UnitOfWork            : Triển khai Unit of Work      ││
 │  └─────────────────────────────────────────────────────────┘│
-│                                                              │
+│                                                             │
 │  ┌─────────────────────────────────────────────────────────┐│
 │  │ HotelContext.cs : DbContext (EF Core)                   ││
 │  │  - Cấu hình DbSet cho các Entity                        ││
@@ -87,10 +87,10 @@ Hệ thống Quản lý Khách sạn giải quyết các vấn đề thực tế
                           │ Entity Framework Core
                           ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                      ENTITIES LAYER                          │
-│            (HotelManagementSystem.Entities)                  │
-│                                                              │
-│  Entities/                                                   │
+│                      ENTITIES LAYER                         │
+│            (HotelManagementSystem.Entities)                 │
+│                                                             │
+│  Entities/                                                  │
 │   - Room.cs          : Phòng khách sạn                      │
 │   - RoomType.cs      : Loại phòng (Đơn, Đôi, VIP...)        │
 │   - Guest.cs         : Khách hàng                           │
@@ -459,18 +459,18 @@ public void Rollback()
 
 ```
 ┌─────────────┐       ┌─────────────┐       ┌─────────────┐
-│  RoomType   │───1:N─│    Room     │───1:N─│   Booking   │
+│  RoomType   │──1:N─→│    Room     │──1:N─→│   Booking   │
 ├─────────────┤       ├─────────────┤       ├─────────────┤
 │ RoomTypeId  │       │ RoomId      │       │ BookingId   │
 │ RoomTypeName│       │ RoomNumber  │       │ GuestId (FK)│
-│ PricePerNight│      │ RoomTypeId  │       │ RoomId (FK) │
+│ PricePerNigh│       │ RoomTypeId  │       │ RoomId (FK) │
 │ Description │       │ Floor       │       │ CheckInDate │
 └─────────────┘       │ Status      │       │ CheckOutDate│
                       │ Description │       │ Status      │
                       └─────────────┘       │ TotalAmount │
                                             │ Note        │
 ┌─────────────┐                             └──────┬──────┘
-│    Guest    │─────────────────────1:N───────────┘│
+│    Guest    │◄─────────────────────1:N───────────┘
 ├─────────────┤                                    │
 │ GuestId     │       ┌─────────────┐              │
 │ FullName    │       │   Service   │              │
@@ -484,21 +484,21 @@ public void Rollback()
                              │              │ BookingId   │
                              │1:N           │ RoomCharge  │
                              ▼              │ServiceCharge│
-                      ┌─────────────┐       │ Discount    │
-                      │BookingService│      │ TotalAmount │
-                      ├─────────────┤       │PaymentMethod│
-                      │BookingServiceId│    │ PaymentDate │
-                      │ BookingId   │◄──N:1─│ CreatedBy   │
-                      │ ServiceId   │       └─────────────┘
-                      │ Quantity    │              │
-                      │ UnitPrice   │              │N:1
-                      │ UsedDate    │              ▼
-                      └─────────────┘       ┌─────────────┐
+                    ┌────────────────┐      │ Discount    │
+                    │  BookingService│      │ TotalAmount │
+                    ├────────────────┤      │PaymentMethod│
+                    │BookingServiceId│      │ PaymentDate │
+                    │ BookingId      │◄─N:1─│ CreatedBy   │
+                    │ ServiceId      │      └─────────────┘
+                    │ Quantity       │              │
+                    │ UnitPrice      │              │N:1
+                    │ UsedDate       │              ▼
+                    └────────────────┘      ┌─────────────┐
                                             │   AppUser   │
                                             ├─────────────┤
                                             │ AppUserId   │
                                             │ UserName    │
-                                            │PasswordHash│
+                                            │PasswordHash │
                                             │ Role        │
                                             │ IsActive    │
                                             └─────────────┘
