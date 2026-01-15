@@ -1130,10 +1130,10 @@ dotnet --version
 
 ```powershell
 # Di chuyển đến thư mục solution
-cd "c:\Users\buixu\Downloads\LibraryManagementSystem-20260109T095600Z-1-001\LibraryManagementSystem"
+cd "HotelManagementSystem"
 
 # Restore packages cho tất cả projects
-dotnet restore HotelManagementSystem.Forms\HotelManagementSystem.Forms.csproj
+dotnet restore HotelManagementSystem.sln
 ```
 
 ### 7.3 Build dự án
