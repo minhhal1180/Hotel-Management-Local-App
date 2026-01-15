@@ -49,21 +49,21 @@ Hệ thống Quản lý Khách sạn giải quyết các vấn đề thực tế
 └─────────────────────────┬───────────────────────────────────┘
                           │ Constructor Injection
                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   BUSINESS LOGIC LAYER                      │
-│               (HotelManagementSystem.BLL)                   │
-│                                                             │
-│  ┌─────────────┐        ┌─────────────────────────────────┐ │
-│  │ Interfaces/ │        │ Services/                       │ │
-│  ├─────────────┤        ├─────────────────────────────────┤ │
-│  │ IAuthService│◄───────│ AuthService.cs                  │ │
-│  │ IRoomService│◄───────│ RoomService.cs                  │ │
-│  │ IGuestService│◄──────│ GuestService.cs                 │ │
-│  │IBookingService│◄─────│ BookingService.cs               │ │
-│  │IServiceService│◄─────│ ServiceService.cs               │ │
-│  │IInvoiceService│◄─────│ InvoiceService.cs               │ │
-│  └─────────────┘        └─────────────────────────────────┘ │
-└─────────────────────────┬───────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────┐
+│                     BUSINESS LOGIC LAYER                      │
+│                 (HotelManagementSystem.BLL)                   │
+│                                                               │
+│  ┌───────────────┐        ┌─────────────────────────────────┐ │
+│  │ Interfaces/   │        │ Services/                       │ │
+│  ├───────────────┤        ├─────────────────────────────────┤ │
+│  │ IAuthService  │◄───────│ AuthService.cs                  │ │
+│  │ IRoomService  │◄───────│ RoomService.cs                  │ │
+│  │ IGuestService │◄───────│ GuestService.cs                 │ │
+│  │IBookingService│◄───────│ BookingService.cs               │ │
+│  │IServiceService│◄───────│ ServiceService.cs               │ │
+│  │IInvoiceService│◄───────│ InvoiceService.cs               │ │
+│  └───────────────┘        └─────────────────────────────────┘ │
+└─────────────────────────┬─────────────────────────────────────┘
                           │ IUnitOfWork Injection
                           ▼
 ┌─────────────────────────────────────────────────────────────┐
