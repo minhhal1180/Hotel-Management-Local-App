@@ -809,7 +809,7 @@ public void ExportRoomsToExcel(string filePath)
 │                                                          │
 │ DỊCH VỤ SỬ DỤNG                                          │
 │ [ServiceName]    [Qty]    [UnitPrice]    [Subtotal]      │
-│ ...                                                       │
+│ ...                                                      │
 │                                                          │
 │ Tiền dịch vụ:                 [ServiceCharge]            │
 │ Giảm giá:                     [Discount]                 │
