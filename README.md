@@ -1228,6 +1228,3 @@ sqllocaldb start MSSQLLocalDB
 
 ---
 
-**Tác giả**: Hotel Management System Team  
-**Ngày tạo**: 16/01/2026  
-**Version**: 1.0.0
