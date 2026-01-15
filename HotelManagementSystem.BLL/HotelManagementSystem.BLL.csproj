@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>HotelManagementSystem.BLL</RootNamespace>
+    <AssemblyName>HotelManagementSystem.BLL</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="EPPlus" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HotelManagementSystem.DAL\HotelManagementSystem.DAL.csproj" />
+    <ProjectReference Include="..\HotelManagementSystem.Entities\HotelManagementSystem.Entities.csproj" />
+  </ItemGroup>
+
+</Project>
