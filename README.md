@@ -1774,7 +1774,7 @@ sqllocaldb start MSSQLLocalDB
 | UI Framework | Windows Forms (.NET 8) |
 | Excel Library | EPPlus 8.4.0 |
 | Transaction | UnitOfWork Pattern với Async Support |
-| Async/Await | ✅ **Đã triển khai toàn bộ** (DAL → BLL → Forms) |
+| Async/Await | (DAL → BLL → Forms) |
 | Validation | Manual (tại Form + Service) |
 | DTO | Không sử dụng (Entity trực tiếp) |
 
