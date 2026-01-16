@@ -311,38 +311,6 @@ public partial class FrmGuests : Form
 }
 ```
 
-### 2.4 Xử lý Bất đồng bộ (Asynchronous)
-
-#### Trạng thái hiện tại:
-Dự án **KHÔNG sử dụng async/await** - tất cả các phương thức đều chạy đồng bộ (synchronous).
-
-```csharp
-// Hiện tại: Đồng bộ
-public IEnumerable<Guest> GetGuests(string keyword = "")
-{
-    return _unitOfWork.GuestRepository.GetAll().ToList();
-}
-
-// Nếu chuyển sang bất đồng bộ (khuyến nghị cho tương lai):
-public async Task<IEnumerable<Guest>> GetGuestsAsync(string keyword = "")
-{
-    return await _unitOfWork.GuestRepository.GetAllAsync().ToListAsync();
-}
-```
-
-#### Lợi ích của Async/Await (nếu triển khai):
--  Không block UI thread khi thao tác Database
--  Cải thiện responsiveness của ứng dụng WinForms
--  Tối ưu tài nguyên hệ thống
-
-#### Return Type hiện tại:
-- `void` - Cho các phương thức không cần trả về
-- `IEnumerable<T>` - Cho danh sách Entity
-- `T?` - Cho single Entity (có thể null)
-- `string` - Cho thông báo kết quả (Import Excel)
-
----
-
 ## 3. CƠ SỞ DỮ LIỆU & TRANSACTION
 
 ### 3.1 Cấu hình Database
