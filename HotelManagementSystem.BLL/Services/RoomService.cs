@@ -1,6 +1,8 @@
 ﻿using HotelManagementSystem.BLL.Interfaces;
+using HotelManagementSystem.DAL;
 using HotelManagementSystem.DAL.Repositories;
 using HotelManagementSystem.Entities.Entities;
+using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
@@ -12,28 +14,32 @@ namespace HotelManagementSystem.BLL.Services
 {
     public class RoomService : IRoomService
     {
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IDbContextFactory<HotelContext> _contextFactory;
 
         // Cache trên RAM
         private static List<Room>? _cachedRooms = null;
         private static List<RoomType>? _cachedRoomTypes = null;
 
-        public RoomService(IUnitOfWork unitOfWork)
+        public RoomService(IDbContextFactory<HotelContext> contextFactory)
         {
-            _unitOfWork = unitOfWork;
+            _contextFactory = contextFactory;
         }
+
+        private IUnitOfWork CreateUnitOfWork() => new UnitOfWork(_contextFactory);
 
         public void RefreshCache()
         {
-            _cachedRooms = _unitOfWork.RoomRepository.GetAll(includeProperties: "RoomType").ToList();
-            _cachedRoomTypes = _unitOfWork.RoomTypeRepository.GetAll().ToList();
+            using var unitOfWork = CreateUnitOfWork();
+            _cachedRooms = unitOfWork.RoomRepository.GetAll(includeProperties: "RoomType").ToList();
+            _cachedRoomTypes = unitOfWork.RoomTypeRepository.GetAll().ToList();
         }
 
         public async Task RefreshCacheAsync()
         {
-            var rooms = await _unitOfWork.RoomRepository.GetAllAsync(includeProperties: "RoomType");
+            await using var unitOfWork = CreateUnitOfWork();
+            var rooms = await unitOfWork.RoomRepository.GetAllAsync(includeProperties: "RoomType");
             _cachedRooms = rooms.ToList();
-            var types = await _unitOfWork.RoomTypeRepository.GetAllAsync();
+            var types = await unitOfWork.RoomTypeRepository.GetAllAsync();
             _cachedRoomTypes = types.ToList();
         }
 
@@ -41,7 +47,8 @@ namespace HotelManagementSystem.BLL.Services
         {
             if (_cachedRoomTypes == null)
             {
-                var types = await _unitOfWork.RoomTypeRepository.GetAllAsync();
+                await using var unitOfWork = CreateUnitOfWork();
+                var types = await unitOfWork.RoomTypeRepository.GetAllAsync();
                 _cachedRoomTypes = types.ToList();
             }
             return _cachedRoomTypes;
@@ -74,13 +81,15 @@ namespace HotelManagementSystem.BLL.Services
             {
                 return _cachedRooms.FirstOrDefault(r => r.RoomId == id);
             }
-            return await _unitOfWork.RoomRepository.GetByIDAsync(id);
+            await using var unitOfWork = CreateUnitOfWork();
+            return await unitOfWork.RoomRepository.GetByIDAsync(id);
         }
 
         public async Task AddRoomAsync(Room room)
         {
-            _unitOfWork.RoomRepository.Insert(room);
-            await _unitOfWork.SaveAsync();
+            await using var unitOfWork = CreateUnitOfWork();
+            unitOfWork.RoomRepository.Insert(room);
+            await unitOfWork.SaveAsync();
 
             if (_cachedRooms != null)
             {
@@ -95,8 +104,9 @@ namespace HotelManagementSystem.BLL.Services
 
         public async Task UpdateRoomAsync(Room room)
         {
-            _unitOfWork.RoomRepository.Update(room);
-            await _unitOfWork.SaveAsync();
+            await using var unitOfWork = CreateUnitOfWork();
+            unitOfWork.RoomRepository.Update(room);
+            await unitOfWork.SaveAsync();
 
             if (_cachedRooms != null)
             {
@@ -120,7 +130,8 @@ namespace HotelManagementSystem.BLL.Services
 
         public async Task DeleteRoomAsync(int id)
         {
-            var bookings = await _unitOfWork.BookingRepository.GetAllAsync(filter: b => b.RoomId == id);
+            await using var unitOfWork = CreateUnitOfWork();
+            var bookings = await unitOfWork.BookingRepository.GetAllAsync(filter: b => b.RoomId == id);
             var hasBooking = bookings.Any();
 
             if (hasBooking)
@@ -128,8 +139,8 @@ namespace HotelManagementSystem.BLL.Services
                 throw new InvalidOperationException("Phòng đã có lịch sử đặt, không thể xóa!");
             }
 
-            await _unitOfWork.RoomRepository.DeleteAsync(id);
-            await _unitOfWork.SaveAsync();
+            await unitOfWork.RoomRepository.DeleteAsync(id);
+            await unitOfWork.SaveAsync();
 
             if (_cachedRooms != null)
             {
@@ -140,7 +151,8 @@ namespace HotelManagementSystem.BLL.Services
 
         public async Task<IEnumerable<Room>> GetAvailableRoomsAsync(DateTime checkIn, DateTime checkOut)
         {
-            var busyBookings = await _unitOfWork.BookingRepository.GetAllAsync(
+            await using var unitOfWork = CreateUnitOfWork();
+            var busyBookings = await unitOfWork.BookingRepository.GetAllAsync(
                 filter: b => b.Status != "Cancelled" && b.Status != "CheckedOut" &&
                              ((checkIn >= b.CheckInDate && checkIn < b.CheckOutDate) ||
                               (checkOut > b.CheckInDate && checkOut <= b.CheckOutDate) ||
@@ -161,6 +173,7 @@ namespace HotelManagementSystem.BLL.Services
 
             if (_cachedRoomTypes == null) await GetAllRoomTypesAsync();
 
+            await using var unitOfWork = CreateUnitOfWork();
             using (var package = new ExcelPackage(new FileInfo(filePath)))
             {
                 var worksheet = package.Workbook.Worksheets[0];
@@ -187,11 +200,11 @@ namespace HotelManagementSystem.BLL.Services
                             Description = worksheet.Cells[row, 4].Text
                         };
 
-                        _unitOfWork.RoomRepository.Insert(room);
+                        unitOfWork.RoomRepository.Insert(room);
                     }
                     catch { }
                 }
-                await _unitOfWork.SaveAsync();
+                await unitOfWork.SaveAsync();
             }
             await RefreshCacheAsync();
         }

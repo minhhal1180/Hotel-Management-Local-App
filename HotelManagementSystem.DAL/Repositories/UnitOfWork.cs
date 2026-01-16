@@ -1,6 +1,7 @@
 ﻿using HotelManagementSystem.Entities;
 using HotelManagementSystem.Entities.Entities;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Threading.Tasks;
 
@@ -21,9 +22,10 @@ namespace HotelManagementSystem.DAL.Repositories
         private IGenericRepository<Invoice>? _invoiceRepository;
         private IGenericRepository<AppUser>? _appUserRepository;
 
-        public UnitOfWork(HotelContext context)
+        public UnitOfWork(IDbContextFactory<HotelContext> contextFactory)
         {
-            _context = context;
+            // Create a new DbContext instance for this UnitOfWork to avoid sharing the same DbContext across threads
+            _context = contextFactory.CreateDbContext();
         }
 
         // Triển khai Singleton đơn giản cho từng Repository
@@ -154,6 +156,21 @@ namespace HotelManagementSystem.DAL.Repositories
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (!disposed)
+            {
+                if (_transaction != null)
+                {
+                    await _transaction.DisposeAsync();
+                    _transaction = null;
+                }
+                await _context.DisposeAsync();
+                disposed = true;
+            }
             GC.SuppressFinalize(this);
         }
     }

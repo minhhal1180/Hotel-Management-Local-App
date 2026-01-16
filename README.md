@@ -221,19 +221,26 @@ static class Program
         // A. Đọc Connection String từ App.config
         string connectionString = ConfigurationManager.ConnectionStrings["HotelDB"].ConnectionString;
 
-        // B. Đăng ký Database & UnitOfWork
-        services.AddDbContext<HotelContext>(options =>
-            options.UseSqlServer(connectionString));
+        // B. Đăng ký Database & UnitOfWork (DbContextFactory)
+        services.AddDbContextFactory<HotelContext>(options =>
+        {
+            options.UseSqlServer(connectionString, sqlOptions =>
+            {
+                sqlOptions.CommandTimeout(30);
+                sqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorNumbersToAdd: null);
+            });
+            options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+        });
 
-        services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddTransient<IUnitOfWork, UnitOfWork>();
 
         // C. Đăng ký các Service (Logic nghiệp vụ)
-        services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IRoomService, RoomService>();
-        services.AddScoped<IGuestService, GuestService>();
-        services.AddScoped<IBookingService, BookingService>();
-        services.AddScoped<IServiceService, ServiceService>();
-        services.AddScoped<IInvoiceService, InvoiceService>();
+        services.AddTransient<IAuthService, AuthService>();
+        services.AddTransient<IRoomService, RoomService>();
+        services.AddTransient<IGuestService, GuestService>();
+        services.AddTransient<IBookingService, BookingService>();
+        services.AddTransient<IServiceService, ServiceService>();
+        services.AddTransient<IInvoiceService, InvoiceService>();
 
         // D. Đăng ký các Form (Giao diện)
         services.AddTransient<FrmLogin>();
@@ -251,9 +258,9 @@ static class Program
 
 | Vòng đời | Service | Giải thích |
 |----------|---------|------------|
-| **Scoped** | `HotelContext` | Mỗi request tạo 1 instance mới, đảm bảo transaction consistency |
-| **Scoped** | `IUnitOfWork, UnitOfWork` | Cùng scope với DbContext để quản lý transaction |
-| **Scoped** | `IAuthService, IRoomService...` | Logic nghiệp vụ dùng chung UnitOfWork trong cùng scope |
+| **Factory** | `IDbContextFactory<HotelContext>` | Tạo DbContext mới cho mỗi thao tác, tránh share context |
+| **Transient** | `IUnitOfWork, UnitOfWork` | Mỗi thao tác tạo 1 instance mới với DbContext riêng |
+| **Transient** | `IAuthService, IRoomService...` | Mỗi service call dùng UnitOfWork mới, tránh concurrency |
 | **Transient** | `FrmLogin, FrmMain, FrmRooms...` | Mỗi lần mở Form tạo instance mới |
 
 ### 2.3 Interface & Implementation
@@ -279,17 +286,17 @@ public interface IGuestService
     void RefreshCache();
 }
 
-// 2. Service triển khai Interface, nhận IUnitOfWork qua Constructor
+// 2. Service triển khai Interface, nhận IDbContextFactory qua Constructor
 public class GuestService : IGuestService
 {
-    private readonly IUnitOfWork _unitOfWork;
+    private readonly IDbContextFactory<HotelContext> _contextFactory;
 
-    public GuestService(IUnitOfWork unitOfWork)  // Constructor Injection
+    public GuestService(IDbContextFactory<HotelContext> contextFactory)  // Constructor Injection
     {
-        _unitOfWork = unitOfWork;
+        _contextFactory = contextFactory;
     }
 
-    public IEnumerable<Guest> GetGuests(string keyword = "") { ... }
+    public async Task<IEnumerable<Guest>> GetGuestsAsync(string keyword = "") { ... }
     // ...
 }
 
@@ -311,37 +318,6 @@ public partial class FrmGuests : Form
 }
 ```
 
-### 2.4 Xử lý Bất đồng bộ (Asynchronous)
-
-#### Trạng thái hiện tại:
-Dự án **KHÔNG sử dụng async/await** - tất cả các phương thức đều chạy đồng bộ (synchronous).
-
-```csharp
-// Hiện tại: Đồng bộ
-public IEnumerable<Guest> GetGuests(string keyword = "")
-{
-    return _unitOfWork.GuestRepository.GetAll().ToList();
-}
-
-// Nếu chuyển sang bất đồng bộ (khuyến nghị cho tương lai):
-public async Task<IEnumerable<Guest>> GetGuestsAsync(string keyword = "")
-{
-    return await _unitOfWork.GuestRepository.GetAllAsync().ToListAsync();
-}
-```
-
-#### Lợi ích của Async/Await (nếu triển khai):
--  Không block UI thread khi thao tác Database
--  Cải thiện responsiveness của ứng dụng WinForms
--  Tối ưu tài nguyên hệ thống
-
-#### Return Type hiện tại:
-- `void` - Cho các phương thức không cần trả về
-- `IEnumerable<T>` - Cho danh sách Entity
-- `T?` - Cho single Entity (có thể null)
-- `string` - Cho thông báo kết quả (Import Excel)
-
----
 
 ## 3. CƠ SỞ DỮ LIỆU & TRANSACTION
 

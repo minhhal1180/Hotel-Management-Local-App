@@ -108,6 +108,20 @@ namespace HotelManagementSystem.DAL
                 Role = "Admin",
                 IsActive = true
             });
+
+            // Seed default RoomTypes
+            modelBuilder.Entity<RoomType>().HasData(
+                new RoomType { RoomTypeId = 1, RoomTypeName = "Single", Description = "Phòng đơn", PricePerNight = 200000M },
+                new RoomType { RoomTypeId = 2, RoomTypeName = "Double", Description = "Phòng đôi", PricePerNight = 350000M },
+                new RoomType { RoomTypeId = 3, RoomTypeName = "VIP", Description = "Phòng VIP", PricePerNight = 800000M }
+            );
+
+            // Seed default Services
+            modelBuilder.Entity<Service>().HasData(
+                new Service { ServiceId = 1, ServiceName = "Laundry", Price = 50000M, Description = "Giặt ủi", IsActive = true },
+                new Service { ServiceId = 2, ServiceName = "Breakfast", Price = 80000M, Description = "Bữa sáng", IsActive = true },
+                new Service { ServiceId = 3, ServiceName = "Spa", Price = 250000M, Description = "Dịch vụ spa", IsActive = true }
+            );
         }
     }
 }

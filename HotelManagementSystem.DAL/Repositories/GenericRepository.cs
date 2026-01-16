@@ -48,7 +48,7 @@ namespace HotelManagementSystem.DAL.Repositories
             Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null,
             string includeProperties = "")
         {
-            IQueryable<T> query = dbSet;
+            IQueryable<T> query = dbSet.AsNoTracking();
 
             if (filter != null)
             {

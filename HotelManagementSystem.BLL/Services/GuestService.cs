@@ -1,6 +1,8 @@
 ﻿using HotelManagementSystem.BLL.Interfaces;
+using HotelManagementSystem.DAL;
 using HotelManagementSystem.DAL.Repositories;
 using HotelManagementSystem.Entities.Entities;
+using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
@@ -12,22 +14,26 @@ namespace HotelManagementSystem.BLL.Services
 {
     public class GuestService : IGuestService
     {
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IDbContextFactory<HotelContext> _contextFactory;
         private static List<Guest>? _cachedGuests = null;
 
-        public GuestService(IUnitOfWork unitOfWork)
+        public GuestService(IDbContextFactory<HotelContext> contextFactory)
         {
-            _unitOfWork = unitOfWork;
+            _contextFactory = contextFactory;
         }
+
+        private IUnitOfWork CreateUnitOfWork() => new UnitOfWork(_contextFactory);
 
         public void RefreshCache()
         {
-            _cachedGuests = _unitOfWork.GuestRepository.GetAll().ToList();
+            using var unitOfWork = CreateUnitOfWork();
+            _cachedGuests = unitOfWork.GuestRepository.GetAll().ToList();
         }
 
         public async Task RefreshCacheAsync()
         {
-            var guests = await _unitOfWork.GuestRepository.GetAllAsync();
+            await using var unitOfWork = CreateUnitOfWork();
+            var guests = await unitOfWork.GuestRepository.GetAllAsync();
             _cachedGuests = guests.ToList();
         }
 
@@ -62,8 +68,9 @@ namespace HotelManagementSystem.BLL.Services
             if (guest.CreatedDate == DateTime.MinValue)
                 guest.CreatedDate = DateTime.Now;
 
-            _unitOfWork.GuestRepository.Insert(guest);
-            await _unitOfWork.SaveAsync();
+            await using var unitOfWork = CreateUnitOfWork();
+            unitOfWork.GuestRepository.Insert(guest);
+            await unitOfWork.SaveAsync();
 
             if (_cachedGuests != null)
             {
@@ -73,8 +80,9 @@ namespace HotelManagementSystem.BLL.Services
 
         public async Task UpdateGuestAsync(Guest guest)
         {
-            _unitOfWork.GuestRepository.Update(guest);
-            await _unitOfWork.SaveAsync();
+            await using var unitOfWork = CreateUnitOfWork();
+            unitOfWork.GuestRepository.Update(guest);
+            await unitOfWork.SaveAsync();
 
             if (_cachedGuests != null)
             {
@@ -94,7 +102,8 @@ namespace HotelManagementSystem.BLL.Services
 
         public async Task DeleteGuestAsync(int id)
         {
-            var bookings = await _unitOfWork.BookingRepository.GetAllAsync(filter: b => b.GuestId == id);
+            await using var unitOfWork = CreateUnitOfWork();
+            var bookings = await unitOfWork.BookingRepository.GetAllAsync(filter: b => b.GuestId == id);
             var hasBooking = bookings.Any();
 
             if (hasBooking)
@@ -102,8 +111,8 @@ namespace HotelManagementSystem.BLL.Services
                 throw new InvalidOperationException("Khách hàng đã có lịch sử đặt phòng, không thể xóa!");
             }
 
-            await _unitOfWork.GuestRepository.DeleteAsync(id);
-            await _unitOfWork.SaveAsync();
+            await unitOfWork.GuestRepository.DeleteAsync(id);
+            await unitOfWork.SaveAsync();
 
             if (_cachedGuests != null)
             {
@@ -121,6 +130,8 @@ namespace HotelManagementSystem.BLL.Services
 
             int successCount = 0;
             int errorCount = 0;
+
+            await using var unitOfWork = CreateUnitOfWork();
 
             using (var package = new ExcelPackage(new FileInfo(filePath)))
             {
@@ -150,7 +161,7 @@ namespace HotelManagementSystem.BLL.Services
                             newGuest.DOB = dob;
                         }
 
-                        _unitOfWork.GuestRepository.Insert(newGuest);
+                        unitOfWork.GuestRepository.Insert(newGuest);
                         successCount++;
                     }
                     catch
@@ -158,7 +169,7 @@ namespace HotelManagementSystem.BLL.Services
                         errorCount++;
                     }
                 }
-                await _unitOfWork.SaveAsync();
+                await unitOfWork.SaveAsync();
             }
 
             await RefreshCacheAsync();

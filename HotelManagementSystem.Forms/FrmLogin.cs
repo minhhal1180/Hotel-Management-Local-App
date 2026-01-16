@@ -38,9 +38,10 @@ namespace HotelManagementSystem.Forms
                 {
                     MessageBox.Show($"Xin chào {user.UserName}!", "Đăng nhập thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                    // 2. Mở Form Main
-                    // Lấy FrmMain từ ServiceProvider (để đảm bảo FrmMain cũng được tiêm các Service của nó)
-                    var frmMain = Program.ServiceProvider.GetRequiredService<FrmMain>();
+                    // 2. Mở Form Main trong 1 scope riêng (để scoped services có lifetime phù hợp)
+                    var scope = Program.CreateScope();
+                    var frmMain = scope.ServiceProvider.GetRequiredService<FrmMain>();
+                    frmMain.FormClosed += (s, ev) => scope.Dispose();
 
                     this.Hide(); // Ẩn form đăng nhập
                     frmMain.ShowDialog(); // Hiện form chính

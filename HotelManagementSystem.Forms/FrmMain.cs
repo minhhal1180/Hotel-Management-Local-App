@@ -51,7 +51,9 @@ namespace HotelManagementSystem.Forms
             if (result == DialogResult.Yes)
             {
                 this.Hide();
-                var frmLogin = Program.ServiceProvider.GetRequiredService<FrmLogin>();
+                var scope = Program.CreateScope();
+                var frmLogin = scope.ServiceProvider.GetRequiredService<FrmLogin>();
+                frmLogin.FormClosed += (s, ev) => scope.Dispose();
                 frmLogin.ShowDialog();
                 this.Close();
             }
@@ -61,8 +63,10 @@ namespace HotelManagementSystem.Forms
         {
             try
             {
-                // Lấy form từ DI Container
-                var form = Program.ServiceProvider.GetRequiredService<T>();
+                // Tạo scope riêng cho từng Form để các scoped service có lifetime đúng
+                var scope = Program.CreateScope();
+                var form = scope.ServiceProvider.GetRequiredService<T>();
+                form.FormClosed += (s, e) => scope.Dispose();
                 form.ShowDialog();
             }
             catch (Exception ex)

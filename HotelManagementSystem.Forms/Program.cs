@@ -17,6 +17,9 @@ namespace HotelManagementSystem
     {
   public static IServiceProvider ServiceProvider { get; private set; } = null!;
 
+        // Helper: create a new DI scope for a Form lifetime
+        public static IServiceScope CreateScope() => ServiceProvider.CreateScope();
+
         [STAThread]
         static void Main()
         {
@@ -30,8 +33,13 @@ ApplicationConfiguration.Initialize();
 
       ServiceProvider = services.BuildServiceProvider();
 
-        var startForm = ServiceProvider.GetRequiredService<FrmLogin>();
-          Application.Run(startForm);
+        // Tạo một scope riêng cho FrmLogin (và các scoped services của nó).
+        var startScope = CreateScope();
+        var startForm = startScope.ServiceProvider.GetRequiredService<FrmLogin>();
+        // Giữ scope sống đến khi form đóng, rồi dispose
+        startForm.FormClosed += (s, e) => startScope.Dispose();
+
+        Application.Run(startForm);
     }
 
         private static void ConfigureServices(IServiceCollection services)
@@ -40,18 +48,28 @@ ApplicationConfiguration.Initialize();
        string connectionString = ConfigurationManager.ConnectionStrings["HotelDB"].ConnectionString;
 
  // --- B. Đăng ký Database & UnitOfWork ---
-  services.AddDbContext<HotelContext>(options =>
-          options.UseSqlServer(connectionString));
+       // Use DbContextFactory to create DbContext instances on demand (prevents sharing one instance across threads)
+       services.AddDbContextFactory<HotelContext>(options =>
+       {
+           options.UseSqlServer(connectionString, sqlOptions =>
+           {
+               sqlOptions.CommandTimeout(30);
+               sqlOptions.EnableRetryOnFailure(maxRetryCount: 3, maxRetryDelay: TimeSpan.FromSeconds(5), errorNumbersToAdd: null);
+           });
+           options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+       });
 
-     services.AddScoped<IUnitOfWork, UnitOfWork>();
+    // Register UnitOfWork transient so each resolve gets its own instance (avoids DbContext concurrency)
+    services.AddTransient<IUnitOfWork, UnitOfWork>();
 
       // --- C. Đăng ký các Service (Logic nghiệp vụ) ---
-       services.AddScoped<IAuthService, AuthService>();
-  services.AddScoped<IRoomService, RoomService>();
- services.AddScoped<IGuestService, GuestService>();
-     services.AddScoped<IBookingService, BookingService>();
-            services.AddScoped<IServiceService, ServiceService>();
-        services.AddScoped<IInvoiceService, InvoiceService>();
+       // Changed to Transient to avoid DbContext sharing issues between forms
+       services.AddTransient<IAuthService, AuthService>();
+  services.AddTransient<IRoomService, RoomService>();
+ services.AddTransient<IGuestService, GuestService>();
+     services.AddTransient<IBookingService, BookingService>();
+            services.AddTransient<IServiceService, ServiceService>();
+        services.AddTransient<IInvoiceService, InvoiceService>();
 
    // --- D. Đăng ký các Form (Giao diện) ---
        services.AddTransient<FrmLogin>();

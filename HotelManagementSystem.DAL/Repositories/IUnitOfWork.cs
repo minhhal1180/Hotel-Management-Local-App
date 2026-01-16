@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace HotelManagementSystem.DAL.Repositories
 {
-    public interface IUnitOfWork : IDisposable
+    public interface IUnitOfWork : IDisposable, IAsyncDisposable
     {
         // Khai báo các Repository cho từng bảng - Hệ thống Khách sạn
         IGenericRepository<Room> RoomRepository { get; }
